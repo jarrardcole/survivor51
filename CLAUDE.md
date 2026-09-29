@@ -1,4 +1,4 @@
-# Survivor 51 Fantasy League
+# Survivor: 🌈 Brooklyn (Survivor 51 Fantasy League)
 
 Status: Active
 Next: Jarrard tests practice mode; then send the one link to the group, set the draft start time (auto-start), give Will the admin link. The Machine is built and put to a league vote (sign-up + homepage).
@@ -49,6 +49,7 @@ Jarrard is remote on draft night, so the draft is fully self-serve: every player
 - Site: https://jarrardcole.github.io/survivor51/ (the one link). Practice sandbox: `?practice` (bots, fake episodes; practice admin key is `practice`).
 - Backend: Apps Script web app, deployment "Survivor 51 v1" (now Version 4), bound to the Sheet "Survivor 51 Fantasy — backend".
   URLs, Sheet link and the real admin key are in `.env.local` (git-ignored). Never commit the admin key.
+- **Host view (Will's laptop on the TV):** `?tv&admin=<KEY>`. TV board + a small Host bar (start, pause, undo, use backup plan). Clicking a castaway opens "Draft X for <whoever is up>?"; if that player picks on their phone first, the server keeps theirs (`pick_for` checks `n` + `playerId`). Before the draft the TV shows a waiting room (who's in, who's ready, QR, Machine vote).
 - Personal links: `?me=<token>` signs a player in on any device. Admin → Players → "Copy all links".
 - `tools/rehearse.js` runs a full draft against the live backend in the practice namespace (races, timeouts, purge). Last run:
   18 picks, 0 errors, and with 12 simultaneous pollers p50 ~1s / p90 2.6s / max 5.3s, 0 busy.

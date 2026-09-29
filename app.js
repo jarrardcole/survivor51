@@ -315,6 +315,7 @@
   // ---------- chrome: nav, me chip, banner ----------
   function renderChrome() {
     document.body.classList.toggle('is-admin', !!S.isAdmin);
+    document.body.classList.toggle('is-host', isHost());
     var chip = $('#meChip');
     if (S.me && amIn()) {
       chip.innerHTML = '<button class="who" data-act="me"><span class="dot" style="background:' + esc(S.me.color) + '"></span>' + esc(S.me.name.split(' ')[0]) + '</button>';
@@ -402,13 +403,13 @@
       if (navigator.vibrate && (!navigator.userActivation || navigator.userActivation.hasBeenActive)) navigator.vibrate([250, 120, 250, 120, 400]);
       if (S.sound) chime();
       if (document.hidden && window.Notification && Notification.permission === 'granted') {
-        try { new Notification('🔥 You’re on the clock!', { body: 'Survivor 51 draft: make your pick.' }); } catch (e) { /* ignore */ }
+        try { new Notification('🔥 It’s your pick!', { body: 'Survivor: Brooklyn draft. Tap to pick.' }); } catch (e) { /* ignore */ }
       }
       clearInterval(titleTimer);
       var on = false;
-      titleTimer = setInterval(function () { on = !on; document.title = on ? '🔥 YOUR PICK' : 'Survivor 51 Fantasy'; }, 900);
+      titleTimer = setInterval(function () { on = !on; document.title = on ? '🔥 YOUR PICK' : 'Survivor: 🌈 Brooklyn'; }, 900);
     }
-    if (!key) { clearInterval(titleTimer); document.title = 'Survivor 51 Fantasy'; }
+    if (!key) { clearInterval(titleTimer); document.title = 'Survivor: 🌈 Brooklyn'; }
     myTurnKey = key;
   }
   var audioCtx = null;
@@ -511,6 +512,32 @@
     setTimeout(done, ms);
   }
 
+  // ---------- Brooklyn map art ----------
+  // The same patch of Brooklyn as Season 50: the street grid around Barclays, three
+  // neighborhoods, and torch markers where the tribe assembles.
+  function brooklynMap(cls) {
+    var g = 'rgba(245,200,66,';
+    return '<svg class="bk-map ' + (cls || '') + '" viewBox="0 0 400 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+      '<line x1="180" y1="10" x2="240" y2="170" stroke="' + g + '.5)" stroke-width="4"/>' +              // Flatbush Ave
+      '<line x1="20" y1="65" x2="380" y2="65" stroke="' + g + '.42)" stroke-width="3"/>' +               // Atlantic Ave
+      '<line x1="280" y1="10" x2="280" y2="170" stroke="' + g + '.35)" stroke-width="2.5"/>' +           // 4th Ave
+      '<line x1="40" y1="90" x2="350" y2="90" stroke="' + g + '.28)" stroke-width="1.5"/>' +             // Dean St
+      '<line x1="40" y1="110" x2="350" y2="110" stroke="' + g + '.28)" stroke-width="1.5"/>' +           // Bergen St
+      '<line x1="120" y1="30" x2="120" y2="160" stroke="' + g + '.28)" stroke-width="1.5"/>' +           // Smith St
+      '<line x1="80" y1="30" x2="80" y2="160" stroke="' + g + '.22)" stroke-width="1.5"/>' +             // Court St
+      '<line x1="220" y1="30" x2="220" y2="160" stroke="' + g + '.28)" stroke-width="1.5"/>' +           // Vanderbilt
+      '<text x="330" y="61" fill="' + g + '.35)" font-size="5" font-family="system-ui" letter-spacing="1">ATLANTIC AV</text>' +
+      '<text x="236" y="150" fill="' + g + '.35)" font-size="5" font-family="system-ui" letter-spacing="1" transform="rotate(69 236 150)">FLATBUSH</text>' +
+      '<polygon points="210,55 230,45 250,55 230,65" fill="rgba(232,117,26,.45)" stroke="rgba(232,117,26,.6)" stroke-width="1"/>' +
+      '<text x="230" y="75" fill="rgba(232,117,26,.7)" font-size="5.5" font-weight="700" font-family="system-ui" text-anchor="middle">BARCLAYS</text>' +
+      '<text x="70" y="102" fill="' + g + '.6)" font-size="9" font-weight="800" font-family="system-ui" letter-spacing="2">BOERUM HILL</text>' +
+      '<text x="196" y="38" fill="' + g + '.55)" font-size="8" font-weight="800" font-family="system-ui" letter-spacing="2">FORT GREENE</text>' +
+      '<text x="288" y="132" fill="' + g + '.55)" font-size="8" font-weight="800" font-family="system-ui" letter-spacing="2">PARK SLOPE</text>' +
+      [[100, 85], [250, 100], [310, 115], [160, 75]].map(function (c) {
+        return '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="3.5" fill="rgba(255,122,47,.85)"/><circle class="bk-pulse" cx="' + c[0] + '" cy="' + c[1] + '" r="8" fill="none" stroke="rgba(255,122,47,.4)" stroke-width="1"/>';
+      }).join('') + '</svg>';
+  }
+
   // ---------- toast / sheet ----------
   var toastTimer = null;
   function toast(msg, bad) {
@@ -598,10 +625,10 @@
     var lk = liveKind();
 
     // Hero
-    h += '<div class="hero">';
+    h += '<div class="hero">' + brooklynMap('hero-map');
     if (phase === 'open') {
       var draftAt = L.draftAt ? new Date(L.draftAt).getTime() : null;
-      h += '<div class="eyebrow">' + (PRACTICE ? '🧪 Practice league' : 'Season 51 · Fiji · The Open Era') + '</div>' +
+      h += '<div class="eyebrow">' + (PRACTICE ? '🧪 Practice league' : 'Survivor: 🌈 Brooklyn · Season 51') + '</div>' +
         '<h1>' + (PRACTICE ? 'Take it for a <em>test drive</em>' : 'Draft night is <em>coming</em>') + '</h1>' +
         '<p>Twenty castaways are left after the premiere. We draft on Episode 2 night, Wed Sep 30, from our phones.' + (amIn() ? '' : ' Join now and take 2 minutes to get ready.') + '</p>' +
         (draftAt ? '<div class="countdown" data-countdown="' + draftAt + '"></div>' : '') +
@@ -647,6 +674,7 @@
       h += machineCard(v, true);
     }
     h += '</div></div>';
+    h += '<div class="bk-foot">' + brooklynMap('foot-map') + '<div>Brooklyn, NY · where the tribe assembles</div></div>';
     $('#page-home').innerHTML = h;
   }
 
@@ -844,7 +872,7 @@
     } else if (L.draft.status !== 'open') {
       h += '<div class="card center"><h2>The draft has started</h2><p class="muted">Want in anyway? Ask Will to add you. If you already joined, sign in.</p><button class="btn primary" data-act="signin">Sign in</button></div>';
     } else {
-      h += '<div class="center"><div class="eyebrow">Season 51 Fantasy</div><h1 class="display" style="font-size:44px;margin:6px 0">Join the league</h1>' +
+      h += '<div class="center">' + brooklynMap('join-map') + '<div class="eyebrow">Survivor: 🌈 Brooklyn · Season 51</div><h1 class="display" style="font-size:44px;margin:6px 0">Join the league</h1>' +
         '<p class="muted">Takes 20 seconds. You’ll use this email to sign in, on any device. Nobody else sees it.</p></div>' +
         '<div class="card stack"><label class="field"><span>Your name</span><input class="input" id="jName" autocomplete="name" autocapitalize="words" maxlength="40" placeholder="First and last"></label>' +
         '<label class="field"><span>Email</span><input class="input" id="jEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com"></label>' +
@@ -873,8 +901,85 @@
     if (S.draftTab === 'main') kind = 'main';
     var d = draftOf(kind);
     var el = $('#page-draft');
+    if (S.tv && d.status === 'open') { el.innerHTML = tvLobby(v); setTimeout(drawQr, 0); renderHostBar(); return; }
     if (d.status === 'open') { el.innerHTML = (PRACTICE ? practiceLab() : '') + draftPrep(v); return; }
     el.innerHTML = draftRoom(v, kind) + (PRACTICE && d.status === 'complete' ? '<div style="margin-top:18px">' + practiceLab() + '</div>' : '');
+    renderHostBar();
+  }
+
+  // The host is Will: TV view + admin link. He can start, pause, undo, and pick for anyone.
+  function isHost() { return S.tv && S.isAdmin; }
+
+  function hostRounds(L) {
+    var n = Engine.activePlayers(L).length || 1;
+    var cap = Engine.activeCastawayIds(L, CAST).length * L.settings.maxPerCastaway;
+    return Math.max(1, Math.min(L.settings.rounds, Math.floor(cap / n)));
+  }
+
+  // TV before the draft: a waiting room everyone in the room can see.
+  function tvLobby(v) {
+    var L = v.league;
+    var ps = Engine.activePlayers(L);
+    var ready = ps.filter(function (p) { return p.hasWinnerBet && p.queueSize >= listTarget(); }).length;
+    var at = L.draftAt ? new Date(L.draftAt).getTime() : null;
+    var t = L.machineVotes || { yay: 0, nay: 0 };
+    var h = '<div class="tv-lobby">' + brooklynMap('hero-map') +
+      '<div class="tv-lobby-head"><div class="eyebrow">Survivor: 🌈 Brooklyn · Season 51</div><h1 class="display">Draft night</h1>' +
+      (at ? '<div class="countdown" data-countdown="' + at + '"></div>' : '<p class="muted">Starting soon.</p>') + '</div>' +
+      '<div class="tv-lobby-grid"><div class="card"><div class="row" style="margin-bottom:12px"><h3 class="grow" style="margin:0">Who’s in (' + ps.length + ')</h3><span class="chip good">' + ready + ' draft-ready</span></div>' +
+      '<div class="lobby" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">' + ps.map(function (p) {
+        var ok = p.hasWinnerBet && p.queueSize >= listTarget();
+        return '<div class="lobby-item"><span class="dot" style="width:26px;height:26px;background:' + esc(p.color) + '"></span><div class="grow"><div class="name">' + esc(p.name) + '</div></div>' + (ok ? '<span class="chip good">✓ ready</span>' : '<span class="chip">not ready</span>') + '</div>';
+      }).join('') + '</div></div>' +
+      '<div class="stack"><div class="card row" style="flex-wrap:nowrap"><div id="tvQr" class="qr"></div><div><b>Scan to join or pick from your phone</b><div class="small muted">Not ready? Takes 2 minutes.</div></div></div>' +
+      '<div class="card machine-card"><b>🤖 The Machine vote</b><div class="vote-tally" style="margin-top:6px"><b>' + t.yay + '</b> yay · <b>' + t.nay + '</b> nay</div><div class="tiny dim">Closes when the draft starts.</div></div>' +
+      '</div></div></div>';
+    return h;
+  }
+
+  // Small floating controls, only on the host's screen.
+  function renderHostBar() {
+    var bar = $('#hostBar');
+    if (!bar) { bar = document.createElement('div'); bar.id = 'hostBar'; bar.className = 'host-bar'; document.body.appendChild(bar); }
+    if (!isHost() || !S.data) { bar.hidden = true; return; }
+    var L = S.data.league;
+    var kind = liveKind() || 'main';
+    var d = draftOf(kind);
+    var h = '<span class="hb-label">Host</span>';
+    if (L.draft.status === 'open') {
+      h += '<button class="btn sm primary" data-act="h_start">🔥 Start the draft</button>';
+    } else if (d.status === 'live' || d.status === 'paused') {
+      h += (d.status === 'live' ? '<button class="btn sm" data-act="h_pause">❚❚ Pause</button>' : '<button class="btn sm primary" data-act="h_resume">▶ Resume</button>') +
+        '<button class="btn sm" data-act="h_undo">↶ Undo</button>' +
+        '<button class="btn sm" data-act="h_backup">⏭ Use their backup plan</button>' +
+        '<span class="hb-tip">Click a castaway to pick for whoever is up.</span>';
+    } else {
+      h += '<span class="hb-tip">Draft complete.</span>';
+    }
+    bar.innerHTML = h;
+    bar.hidden = false;
+  }
+
+  function hostConfirm(title, body, okLabel, onOk) {
+    openSheet('<h2 class="display" style="font-size:34px;margin-bottom:6px">' + title + '</h2>' + (body ? '<p class="muted">' + body + '</p>' : '') +
+      '<div class="row" style="margin-top:14px"><button class="btn lg" data-act="close">Cancel</button><button class="btn primary lg grow" data-act="h_ok">' + okLabel + '</button></div>');
+    S.hostOk = onOk;
+  }
+
+  function hostPick(id) {
+    var L = S.data.league;
+    var kind = liveKind() || 'main';
+    var d = draftOf(kind);
+    var slot = Engine.currentSlot(d);
+    if (!slot) return;
+    var c = CASTBY[id];
+    var blocker = Engine.pickBlocker(L, CAST, kind, slot.playerId, id);
+    if (blocker) { toast(playerName(L, slot.playerId) + ' can’t take ' + c.shortName + ': ' + (ERRORS[blocker] || blocker), true); return; }
+    var who = playerName(L, slot.playerId);
+    openSheet('<div class="sheet-hero">' + ava(id, 'lg') + '<div><div class="small muted">Pick #' + (slot.n + 1) + ' for</div><h2 class="display" style="font-size:36px;color:' + esc(playerColor(L, slot.playerId)) + '">' + esc(who) + '</h2></div></div>' +
+      '<h2 class="display" style="font-size:44px;margin:4px 0 14px">Draft ' + esc(c.shortName) + '?</h2>' +
+      '<div class="row"><button class="btn lg" data-act="close">Cancel</button><button class="btn primary lg grow" data-act="h_pick" data-id="' + id + '" data-n="' + slot.n + '" data-pid="' + slot.playerId + '" data-kind="' + kind + '">Yes, draft ' + esc(c.shortName) + '</button></div>' +
+      '<p class="tiny dim" style="margin-top:10px">If ' + esc(who.split(' ')[0]) + ' picks on their phone first, theirs counts and this one is cancelled.</p>');
   }
 
   // Pre-draft: rank your board + winner bet
@@ -985,7 +1090,7 @@
 
     if (S.tv) {
       h += '<div class="tv-grid" style="margin-top:14px"><div>' + castBoard(v, kind) + '</div><div class="stack">' +
-        '<div class="card row" style="flex-wrap:nowrap"><div id="tvQr" style="width:112px;height:112px;background:#fff;border-radius:10px;padding:6px;flex:none"></div><div><b>Pick from your phone</b><div class="small muted">Scan, sign in with your email, and your board lights up when you’re up.</div></div></div>' +
+        '<div class="card row" style="flex-wrap:nowrap"><div id="tvQr" class="qr"></div><div><b>Pick from your phone</b><div class="small muted">Scan and sign in. Or tell ' + (isHost() ? 'the host' : 'Will') + ' your pick.</div></div></div>' +
         feedCard(v, kind, 12) + (kind === 'main' ? machineCard(v, true) : '') + '</div></div>';
       setTimeout(drawQr, 0);
       return h + '<div style="margin-top:18px">' + bigBoard(v, kind) + '</div>';
@@ -1468,7 +1573,8 @@
     // Links
     h += '<div class="card stack"><h3>Links to share</h3>' +
       linkRow('The one link to share', siteUrl()) +
-      linkRow('TV mode (big screen)', siteUrl('tv')) +
+      linkRow('Host view for the TV (Will’s laptop: pick for people, pause, undo)', siteUrl('tv&admin=' + S.adminKey)) +
+      linkRow('TV view, watch only', siteUrl('tv')) +
       linkRow('Admin link (keep private)', siteUrl('admin=' + S.adminKey, '#admin')) + '</div>';
 
     // Merge
@@ -1726,7 +1832,43 @@
       case 'filter': S.boardFilter = t.dataset.f; store.set('filter', S.boardFilter); render(); return;
       case 'bigboard': S.showBigBoard = !S.showBigBoard; render(); return;
       case 'drafttab': S.draftTab = t.dataset.tab; render(); return;
-      case 'castaway': castawaySheet(id, t.dataset.kind); return;
+      case 'castaway':
+        if (isHost() && liveKind()) { hostPick(id); return; }
+        castawaySheet(id, t.dataset.kind); return;
+      case 'h_ok': { var fn = S.hostOk; S.hostOk = null; closeSheet(); if (fn) fn(); return; }
+      case 'h_pick':
+        t.disabled = true; t.textContent = 'Drafting…';
+        admin('pick_for', { kind: t.dataset.kind, castawayId: id, n: Number(t.dataset.n), playerId: t.dataset.pid })
+          .then(function () { closeSheet(); })
+          .catch(function (e) { closeSheet(); toast(e.code === 'stale_pick' ? 'They already picked on their phone. No change needed.' : errMsg(e), e.code !== 'stale_pick'); poll(); });
+        return;
+      case 'h_start': {
+        var Ls = S.data.league;
+        var n = Engine.activePlayers(Ls).length;
+        hostConfirm('Start the draft?', n + ' players, ' + hostRounds(Ls) + ' rounds, ' + Ls.settings.clockSec + ' seconds a pick. Sign-ups and the Machine vote close.', '🔥 Start', function () {
+          admin('start_draft', { rounds: hostRounds(Ls), clockSec: Ls.settings.clockSec, revealSec: 20 }).then(function () { S.seenStatus.main = 'open'; poll(); }).catch(function (e) { toast(errMsg(e), true); });
+        });
+        return;
+      }
+      case 'h_pause': admin('pause', { kind: liveKind() || 'main' }).then(function () { toast('Paused'); }).catch(function (e) { toast(errMsg(e), true); }); return;
+      case 'h_resume': admin('resume', { kind: liveKind() || 'main' }).then(function () { toast('Resumed'); }).catch(function (e) { toast(errMsg(e), true); }); return;
+      case 'h_backup': {
+        var kb = liveKind() || 'main';
+        var sb = Engine.currentSlot(draftOf(kb));
+        hostConfirm('Use ' + esc(playerName(S.data.league, sb.playerId).split(' ')[0]) + '’s backup plan?', 'Picks the top castaway still available on their list, right now.', 'Pick now', function () {
+          admin('autopick_now', { kind: kb }).catch(function (e) { toast(errMsg(e), true); });
+        });
+        return;
+      }
+      case 'h_undo': {
+        var ku = liveKind() || 'main';
+        var dl = draftOf(ku), last = dl.picks[dl.picks.length - 1];
+        if (!last) return;
+        hostConfirm('Undo the last pick?', esc(playerName(S.data.league, last.playerId)) + (last.castawayId ? ' took ' + esc(CASTBY[last.castawayId].shortName) : '') + '. They’ll be back on the clock.', 'Undo', function () {
+          admin('undo', { kind: ku }).then(function () { S.seenPicks[ku] = draftOf(ku).picks.length; toast('Undone'); }).catch(function (e) { toast(errMsg(e), true); });
+        });
+        return;
+      }
       case 'pick': {
         t.disabled = true; t.innerHTML = 'Drafting…';
         var kind = t.dataset.kind;
@@ -1815,7 +1957,7 @@
       case 'a_copyall': {
         var lines = (S.adminRoster || []).filter(function (p) { return !p.removed && p.token; })
           .map(function (p) { return p.name + ': ' + personalLink(p.token); });
-        var text = 'Survivor 51 draft links — tap yours and it signs you in:\n' + lines.join('\n');
+        var text = 'Survivor: 🌈 Brooklyn draft links. Tap yours and it signs you in:\n' + lines.join('\n');
         if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { toast('Copied ' + lines.length + ' links'); });
         return;
       }

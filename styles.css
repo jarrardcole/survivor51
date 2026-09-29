@@ -565,3 +565,45 @@ details.more summary::-webkit-details-marker { display: none; }
 details.more summary::after { content: ' +'; color: var(--flame); }
 details.more[open] summary::after { content: ' –'; }
 details.more p { font-size: 13.5px; color: #E3D7C8; margin: 8px 0 0; line-height: 1.55; }
+
+/* ---------- Brooklyn ---------- */
+.bk-map { display: block; }
+.bk-map .bk-pulse { transform-origin: center; transform-box: fill-box; animation: bkpulse 2.4s ease-out infinite; }
+@keyframes bkpulse { 0% { transform: scale(.6); opacity: 1; } 100% { transform: scale(1.8); opacity: 0; } }
+.hero { isolation: isolate; }
+.hero .hero-map { position: absolute; right: -30px; bottom: -20px; width: min(560px, 80%); opacity: .32; z-index: -1; pointer-events: none; }
+.join-map { width: min(320px, 80%); margin: 0 auto 6px; opacity: .8; }
+.bk-foot { margin: 40px auto 0; max-width: 420px; text-align: center; color: var(--dim); font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase; font-weight: 700; }
+.bk-foot .foot-map { opacity: .45; margin-bottom: 6px; }
+.brand-text i { background: linear-gradient(90deg, #FF5A5F, #FFB23F, #F5D422, #5ED9A0, #3FA9F5, #A66BF0); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* ---------- Host (TV + admin) ---------- */
+.qr { width: 112px; height: 112px; background: #fff; border-radius: 10px; padding: 6px; flex: none; }
+.host-bar {
+  position: fixed; right: 16px; bottom: 16px; z-index: 70; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  padding: 8px 10px; border-radius: 14px; background: rgba(20, 16, 12, .92); border: 1px solid var(--line-2); box-shadow: var(--shadow);
+  max-width: calc(100vw - 32px); backdrop-filter: blur(10px);
+}
+.host-bar .hb-label { font-size: 10.5px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--flame); padding: 0 4px; }
+.host-bar .hb-tip { font-size: 12px; color: var(--muted); padding: 0 4px; }
+body.is-host .bc:not(.gone):not(.out):not(.mine) { cursor: pointer; }
+body.is-host .bc:hover:not(.gone):not(.out) { border-color: var(--flame); box-shadow: 0 0 0 1px var(--flame); }
+.tv-lobby { position: relative; isolation: isolate; }
+.tv-lobby .hero-map { position: absolute; right: 0; top: -10px; width: min(620px, 60%); opacity: .25; z-index: -1; }
+.tv-lobby-head { padding: 10px 0 20px; }
+.tv-lobby-head h1 { font-size: clamp(48px, 8vw, 96px); line-height: .95; margin: 6px 0 14px; }
+.tv-lobby-grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 18px; align-items: start; }
+@media (max-width: 900px) { .tv-lobby-grid { grid-template-columns: 1fr; } }
+.reveal.order .list { margin: 18px auto 0; }
+.reveal.order .who { font-size: clamp(28px, 5vw, 56px); }
+.brand-text b, .me-chip .btn { white-space: nowrap; }
+@media (max-width: 760px) {
+  .brand-text b { font-size: 17px; }
+  .brand-text i { font-size: 9px; letter-spacing: .14em; }
+  .brand-flame { width: 20px; height: 26px; }
+  .me-chip .btn.sm { padding: 6px 10px; }
+}
+@media (max-width: 400px) {
+  .brand-text i { display: none; }
+  .me-chip .btn.ghost { display: none; }   /* "Sign in" is still on the homepage ("I already joined") */
+}
