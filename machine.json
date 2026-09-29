@@ -1,0 +1,26 @@
+{
+  "name": "The Machine",
+  "tagline": "An AI shadow team. It doesn't take anyone's picks and can't win the pot. It just wants to beat you.",
+  "plan": [
+    { "id": "rob",      "quip": "He already holds an idol and his tribe hasn't seen Tribal. I respect a man with a contingency plan." },
+    { "id": "kilby",    "quip": "A game designer who met his girlfriend playing online Survivor. He thinks in systems. So do I." },
+    { "id": "mike",     "quip": "Princeton, baseball analytics, and he played pretend Jeff Probst as a child. We are going to get along." },
+    { "id": "kristin",  "quip": "Applied for 25 years. That is not a contestant. That is a long-term optimization process." },
+    { "id": "sharonda", "quip": "An OB-GYN resident. Calm under pressure, used to long shifts. Hard to vote out a doctor." },
+    { "id": "patt",     "quip": "Federal prosecutor. She will cross-examine the jury. I find this efficient." },
+    { "id": "thien-an", "quip": "Voted with the majority on night one. Pattern recognized." },
+    { "id": "eric",     "quip": "A counselor who plans to befriend everyone. Humans call this 'social game.' I call it data collection." },
+    { "id": "alexis",   "quip": "A defense attorney hiding that she's a defense attorney. Deception detected. Approved." },
+    { "id": "carter",   "quip": "Livestock farmer, moving company, snow cone truck. Diversified revenue. Low elimination risk." },
+    { "id": "ana",      "quip": "A voice actor with a cute persona covering a devious game. I, too, sound friendly." },
+    { "id": "ori",      "quip": "He studied recent winners. Unfortunately for him, so did I." },
+    { "id": "maggie",   "quip": "Claims to have no fear. Statistically, everyone has some fear. Monitoring." },
+    { "id": "cristian", "quip": "One confessional in the premiere. Invisible edits sometimes win. Sometimes they do not. Risk accepted." },
+    { "id": "brady",    "quip": "A pro wrestler pretending to be a dumb jock. The pretending part is doing a lot of work." },
+    { "id": "lewis",    "quip": "Survived his first vote by being alone on an island. Relatable." },
+    { "id": "jenna",    "quip": "Played a Shot in the Dark and lived. Luck is not a strategy. But I will take it." },
+    { "id": "linnea",   "quip": "Says yes to scary things. I am a scary thing." },
+    { "id": "devin",    "quip": "Most confessionals, wrong side of the first vote. The edit giveth." },
+    { "id": "jelly",    "quip": "Teaches Survivor in college. I was trained on her syllabus. Probably." }
+  ]
+}

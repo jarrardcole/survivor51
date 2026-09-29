@@ -18,13 +18,13 @@ var Engine = (function () {
     { key: 'findIdol',      label: 'Finds / possesses idol',     short: 'Idol found', points: 3,   type: 'check' },
     { key: 'playIdol',      label: 'Plays idol successfully',    short: 'Idol play',  points: 8,   type: 'check' },
     { key: 'findAdvantage', label: 'Finds / wins advantage',     short: 'Adv found',  points: 3,   type: 'check' },
-    { key: 'playAdvantage', label: 'Plays advantage to effect',  short: 'Adv play',   points: 4,   type: 'check' },
+    { key: 'playAdvantage', label: 'Plays an advantage that works',  short: 'Adv play',   points: 4,   type: 'check' },
     { key: 'makesMerge',    label: 'Makes the merge',            short: 'Merge',      points: 4,   type: 'check' },
     { key: 'idolPocket',    label: 'Goes home with idol',        short: 'Idol pocket',points: -5,  type: 'check' },
     { key: 'quit',          label: 'Quits (non-medical)',        short: 'Quit',       points: -15, type: 'check' },
     { key: 'immunityWin',   label: 'Individual immunity win',    short: 'Immunity',   points: 5,   type: 'check' },
     { key: 'firemaking',    label: 'Wins fire-making',           short: 'Fire',       points: 5,   type: 'check' },
-    { key: 'juryVotes',     label: 'Jury votes (runner-up)',     short: 'Jury votes', points: 3,   type: 'number' },
+    { key: 'juryVotes',     label: 'Jury votes at the final Tribal',     short: 'Jury votes', points: 3,   type: 'number' },
     { key: 'soleSurvivor',  label: 'Sole Survivor',              short: 'Winner',     points: 20,  type: 'check' },
     { key: 'iconic',        label: 'Most Iconic (league vote)',  short: 'Iconic',     points: 7,   type: 'check' }
   ];
@@ -518,6 +518,53 @@ var Engine = (function () {
     return out;
   }
 
+  // ---------- The Machine (optional AI shadow team, decided by league vote) ----------
+  // It drafts one castaway at the end of each main-draft round, from its own ranked plan.
+  // Shadow picks never count against the two-pick cap and it can't win; it's a benchmark.
+  function machineDecide(votes, override) {
+    if (override === true || override === false) return override;
+    return (votes.yay || 0) > (votes.nay || 0);    // ties go to the humans
+  }
+
+  function machineCatchUp(league, cast, plan, now) {
+    var m = league.machine;
+    if (!m || !m.enabled) return false;
+    var d = league.draft;
+    var N = d.order.length;
+    if (!N) return false;
+    var target = Math.min(d.rounds, Math.floor(d.picks.length / N));
+    var changed = false;
+    while (m.picks.length > target) { m.picks.pop(); changed = true; }
+    while (m.picks.length < target) {
+      var taken = m.picks.map(function (p) { return p.castawayId; });
+      var next = null;
+      for (var i = 0; i < plan.length; i++) {
+        if (taken.indexOf(plan[i].id) === -1 && castawayStatus(league, cast, plan[i].id) && castawayStatus(league, cast, plan[i].id).status === 'active') { next = plan[i]; break; }
+      }
+      if (!next) break;
+      m.picks.push({ castawayId: next.id, quip: next.quip, round: m.picks.length + 1, afterN: (m.picks.length + 1) * N - 1, at: now });
+      changed = true;
+    }
+    return changed;
+  }
+
+  function machineIds(league) {
+    return league.machine && league.machine.enabled ? league.machine.picks.map(function (p) { return p.castawayId; }) : [];
+  }
+
+  function machineEpisodePoints(league, episodes, ep) {
+    if (ep < league.settings.scoringStartEp) return 0;
+    var t = 0;
+    machineIds(league).forEach(function (id) { t += castawayEpisodePoints(episodes, id, ep); });
+    return t;
+  }
+
+  function machineTotal(league, episodes) {
+    var t = 0;
+    episodeNumbers(league, episodes).forEach(function (ep) { t += machineEpisodePoints(league, episodes, ep); });
+    return t;
+  }
+
   // ---------- Public view ----------
   // Strips secrets. Winner bets stay hidden until the draft completes.
   function publicLeague(league) {
@@ -567,7 +614,12 @@ var Engine = (function () {
     standings: standings,
     raceSeries: raceSeries,
     winProbabilities: winProbabilities,
-    publicLeague: publicLeague
+    publicLeague: publicLeague,
+    machineDecide: machineDecide,
+    machineCatchUp: machineCatchUp,
+    machineIds: machineIds,
+    machineEpisodePoints: machineEpisodePoints,
+    machineTotal: machineTotal
   };
 })();
 

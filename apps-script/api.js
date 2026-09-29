@@ -124,6 +124,7 @@ function publicPayload() {
     // Scheduled start: the draft begins on its own at league.draftAt if autoStart is on.
     if (league.draft.status === 'open' && league.autoStart && league.draftAt && now >= Date.parse(league.draftAt)) {
       try {
+        lockMachineVote(all);
         Engine.startDraft(league, CAST, { now: now, revealSec: 20, rounds: autoRounds(league) });
         changed = true;
       } catch (e) { league.autoStart = false; league.autoStartError = e.code || e.message; changed = true; }
@@ -173,17 +174,33 @@ function buildPublicBody(all) {
   var league = Engine.publicLeague(all[LEAGUE_KEY]);
   // Show who has a winner bet / draft queue in (not what it is) so the lobby can nudge people.
   var byId = all[PRIVATE_KEY].byId;
+  var votes = { yay: 0, nay: 0 };
   league.players.forEach(function (p) {
     var pr = byId[p.id] || {};
     p.hasWinnerBet = !!pr.winnerPick;
     p.queueSize = (pr.queue || []).length;
+    if (!p.removed && !p.bot && pr.machineVote) votes[pr.machineVote]++;
   });
+  league.machineVotes = league.machine ? league.machine.votes : votes;
   return JSON.stringify({ league: league, episodes: episodes, notes: notes });
+}
+
+// Votes lock when the draft starts; the Machine plays if yays beat nays (or Will overrides).
+function lockMachineVote(all) {
+  var league = all[LEAGUE_KEY];
+  var byId = all[PRIVATE_KEY].byId;
+  var votes = { yay: 0, nay: 0 };
+  Engine.activePlayers(league).forEach(function (p) {
+    var v = byId[p.id] && byId[p.id].machineVote;
+    if (!p.bot && v) votes[v]++;
+  });
+  league.machine = { enabled: Engine.machineDecide(votes, league.machineOverride), votes: votes, picks: [] };
 }
 
 // When the main draft completes, the winner bets lock and become public.
 function onDraftProgress(all, kind) {
   var league = all[LEAGUE_KEY];
+  if (kind === 'main') Engine.machineCatchUp(league, CAST, MACHINE.plan, Date.now());
   if (kind === 'main' && league.draft.status === 'complete' && !league.winnerBets) {
     var bets = {};
     var byId = all[PRIVATE_KEY].byId;
@@ -231,7 +248,7 @@ function newToken() {
 
 function meView(all, p) {
   var pr = all[PRIVATE_KEY].byId[p.id] || {};
-  return { id: p.id, name: p.name, color: p.color, email: pr.email, token: pr.token || null, queue: pr.queue || [], winnerPick: pr.winnerPick || null };
+  return { id: p.id, name: p.name, color: p.color, email: pr.email, token: pr.token || null, queue: pr.queue || [], winnerPick: pr.winnerPick || null, machineVote: pr.machineVote || null };
 }
 
 function validCastaway(id) {
@@ -267,7 +284,8 @@ function addPlayer(all, name, email, extra) {
     email: email,
     token: newToken(),
     queue: cleanQueue(extra && extra.queue),
-    winnerPick: extra && validCastaway(extra.winnerPick) ? extra.winnerPick : null
+    winnerPick: extra && validCastaway(extra.winnerPick) ? extra.winnerPick : null,
+    machineVote: extra && (extra.machineVote === 'yay' || extra.machineVote === 'nay') ? extra.machineVote : null
   };
   return p;
 }
@@ -300,6 +318,10 @@ function actPrefs(b) {
     if (all[LEAGUE_KEY].draft.status === 'complete' || all[LEAGUE_KEY].winnerBets) Engine.fail('winner_bet_locked');
     if (b.winnerPick !== null && !validCastaway(b.winnerPick)) Engine.fail('unknown_castaway');
     pr.winnerPick = b.winnerPick;
+  }
+  if (b.machineVote !== undefined) {
+    if (all[LEAGUE_KEY].draft.status !== 'open') Engine.fail('vote_closed');
+    pr.machineVote = b.machineVote === 'yay' || b.machineVote === 'nay' ? b.machineVote : null;
   }
   savePrivate(all);
   DB.cacheClear();   // lobby shows who has a bet in
@@ -385,13 +407,25 @@ function actAdmin(b) {
     }
 
     case 'start_draft':
+      lockMachineVote(all);
       Engine.startDraft(league, CAST, { now: now, rounds: Number(b.rounds) || null, clockSec: Number(b.clockSec) || null, revealSec: Number(b.revealSec) || 0, order: b.order || null });
       break;
 
     case 'pause':  Engine.pause(draft, now); break;
     case 'resume': Engine.resume(draft, now); break;
     case 'undo':   out.undone = Engine.undo(draft, now);   // winner bets stay locked once revealed
+      if (kind === 'main') Engine.machineCatchUp(league, CAST, MACHINE.plan, now);
       break;
+
+    case 'machine': {          // Will's override: true / false / null (= follow the vote)
+      league.machineOverride = b.enabled === true || b.enabled === false ? b.enabled : null;
+      if (league.machine) {
+        league.machine.enabled = Engine.machineDecide(league.machine.votes || {}, league.machineOverride);
+        if (!league.machine.enabled) league.machine.picks = [];
+        Engine.machineCatchUp(league, CAST, MACHINE.plan, now);
+      }
+      break;
+    }
 
     case 'pick_for': {
       var slot = Engine.currentSlot(draft);
@@ -422,6 +456,7 @@ function actAdmin(b) {
       league.draft.clockSec = league.settings.clockSec;
       league.merge = Engine.newDraft('merge');
       league.winnerBets = null;
+      league.machine = null;
       break;
 
     case 'start_merge':
@@ -541,10 +576,12 @@ function actPractice(b) {
       league.draft = Engine.newDraft('main');
       league.merge = Engine.newDraft('merge');
       league.winnerBets = null;
+      league.machine = null;
       league.castaways = {};
       league.currentEp = 2;
       clearEpisodes(all);
       var botIds = league.players.filter(function (p) { return p.bot; }).map(function (p) { return p.id; });
+      lockMachineVote(all);
       Engine.startDraft(league, CAST, { now: now, rounds: autoRounds(league), clockSec: Number(b.clockSec) || 45, revealSec: 8, botIds: botIds, botSec: Number(b.botSec) || 3 });
       savePrivate(all);
       break;

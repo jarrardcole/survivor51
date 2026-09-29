@@ -279,3 +279,31 @@ test('API: purge deletes test sign-ups before the draft', () => {
   assert.strictEqual(r.purged, 1);
   assert.strictEqual(a.get().data.league.players.length, 1);
 });
+
+test('API: Machine vote — majority yay plays, ties go to the humans, shadow picks each round', () => {
+  const a = api();
+  const x = a.post({ action: 'join', name: 'X', email: 'x@x.com', machineVote: 'yay' }).me;
+  const y = a.post({ action: 'join', name: 'Y', email: 'y@x.com', machineVote: 'nay' }).me;
+  assert.deepStrictEqual(a.get().data.league.machineVotes, { yay: 1, nay: 1 });
+  a.post({ action: 'prefs', token: y.token, machineVote: 'yay' });
+  assert.deepStrictEqual(a.get().data.league.machineVotes, { yay: 2, nay: 0 });
+  a.post({ action: 'admin', key: 'k', op: 'start_draft', rounds: 2, clockSec: 60, order: [x.id, y.id] });
+  let L = a.get().data.league;
+  assert.strictEqual(L.machine.enabled, true);
+  assert.strictEqual(a.post({ action: 'prefs', token: x.token, machineVote: 'nay' }).error, 'vote_closed');
+  a.post({ action: 'pick', token: x.token, castawayId: 'rob', n: 0 });
+  a.post({ action: 'pick', token: y.token, castawayId: 'rob', n: 1 });   // round 1 done
+  L = a.get().data.league;
+  assert.strictEqual(L.machine.picks.length, 1);
+  assert.strictEqual(L.machine.picks[0].castawayId, 'rob');              // shadow: doesn't count toward the cap
+  a.post({ action: 'admin', key: 'k', op: 'undo' });
+  assert.strictEqual(a.get().data.league.machine.picks.length, 0);
+});
+
+test('API: tie vote means no Machine', () => {
+  const a = api();
+  const x = a.post({ action: 'join', name: 'X', email: 'x@x.com', machineVote: 'yay' }).me;
+  const y = a.post({ action: 'join', name: 'Y', email: 'y@x.com', machineVote: 'nay' }).me;
+  a.post({ action: 'admin', key: 'k', op: 'start_draft', rounds: 1, clockSec: 60, order: [x.id, y.id] });
+  assert.strictEqual(a.get().data.league.machine.enabled, false);
+});
