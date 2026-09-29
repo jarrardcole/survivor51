@@ -557,3 +557,11 @@ textarea.input { min-height: 320px; font: 14px/1.55 ui-monospace, 'SF Mono', Men
 .qa > div { padding: 0 0 12px; color: #E3D7C8; line-height: 1.6; }
 .qa p { margin: 0 0 8px; }
 .qa ol { margin: 0 0 8px; padding-left: 1.2em; }
+
+.rules-list { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; font-size: 14.5px; }
+details.more { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+details.more summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--muted); list-style: none; }
+details.more summary::-webkit-details-marker { display: none; }
+details.more summary::after { content: ' +'; color: var(--flame); }
+details.more[open] summary::after { content: ' –'; }
+details.more p { font-size: 13.5px; color: #E3D7C8; margin: 8px 0 0; line-height: 1.55; }
