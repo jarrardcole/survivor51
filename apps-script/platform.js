@@ -60,11 +60,11 @@ var Platform = (function () {
     } catch (e) { /* backups must never block a write */ }
   }
 
-  function cachePut(body, meta) {
-    try { cachePutUnsafe(body, meta); } catch (e) { /* a cache failure must never take the site down */ }
+  function cachePut(body, meta, ns) {
+    try { cachePutUnsafe(body, meta, (ns || '') + CACHE_KEY); } catch (e) { /* a cache failure must never take the site down */ }
   }
 
-  function cachePutUnsafe(body, meta) {
+  function cachePutUnsafe(body, meta, CACHE_KEY) {
     var c = CacheService.getScriptCache();
     var parts = {};
     var n = Math.ceil(body.length / CHUNK) || 1;
@@ -73,11 +73,11 @@ var Platform = (function () {
     c.putAll(parts, 300);
   }
 
-  function cacheGet() {
-    try { return cacheGetUnsafe(); } catch (e) { return null; }
+  function cacheGet(ns) {
+    try { return cacheGetUnsafe((ns || '') + CACHE_KEY); } catch (e) { return null; }
   }
 
-  function cacheGetUnsafe() {
+  function cacheGetUnsafe(CACHE_KEY) {
     var c = CacheService.getScriptCache();
     var metaRaw = c.get(CACHE_KEY + ':meta');
     if (!metaRaw) return null;
@@ -93,8 +93,8 @@ var Platform = (function () {
     return { body: body, meta: m.meta || {} };
   }
 
-  function cacheClear() {
-    CacheService.getScriptCache().remove(CACHE_KEY + ':meta');
+  function cacheClear(ns) {
+    CacheService.getScriptCache().remove((ns || '') + CACHE_KEY + ':meta');
   }
 
   function withLock(fn) {

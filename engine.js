@@ -141,6 +141,14 @@ var Engine = (function () {
     return out;
   }
 
+  // Practice bots get a short clock so a practice draft moves fast.
+  function slotDeadline(draft, now, extraSec) {
+    if (!draft.clockSec) return null;
+    var slot = currentSlot(draft);
+    var bot = slot && draft.botIds && draft.botIds.indexOf(slot.playerId) !== -1;
+    return now + ((bot ? (draft.botSec || 3) : draft.clockSec) + (extraSec || 0)) * 1000;
+  }
+
   function shuffle(arr, rand) {
     var a = arr.slice();
     rand = rand || Math.random;
@@ -246,8 +254,10 @@ var Engine = (function () {
     d.status = 'live';
     d.startedAt = opts.now;
     d.picks = [];
+    d.botIds = opts.botIds || [];
+    d.botSec = opts.botSec || 3;
     // First pick gets a little extra time for the order reveal.
-    d.deadline = opts.now + (d.clockSec + (opts.revealSec || 0)) * 1000;
+    d.deadline = slotDeadline(d, opts.now, opts.revealSec || 0);
     d.pausedRemainingMs = null;
     league.settings.rounds = rounds;
     return d;
@@ -303,7 +313,7 @@ var Engine = (function () {
     if (draft.status === 'paused') {
       draft.pausedRemainingMs = draft.clockSec * 1000;
     } else {
-      draft.deadline = draft.clockSec ? now + draft.clockSec * 1000 : null;
+      draft.deadline = slotDeadline(draft, now);
     }
   }
 
@@ -341,7 +351,7 @@ var Engine = (function () {
     var last = draft.picks.pop();
     if (draft.status === 'complete') { draft.status = 'paused'; draft.completedAt = null; }
     if (draft.status === 'paused') { draft.pausedRemainingMs = draft.clockSec * 1000; draft.deadline = null; }
-    else draft.deadline = draft.clockSec ? now + draft.clockSec * 1000 : null;
+    else draft.deadline = slotDeadline(draft, now);
     return last;
   }
 

@@ -129,15 +129,15 @@ test('win probabilities sum to 1', () => {
 
 // ---------- API through the same vm harness the mock server uses ----------
 function api() {
-  let store = {}; let cache = null; let now = 1_000_000;
+  let store = {}; let cache = {}; let now = 1_000_000;
   const ctx = {
     console, Math, JSON,
     Date: class extends Date { static now() { return now; } },
     Platform: {
       storeLoadAll: () => JSON.parse(JSON.stringify(store)),
       storeSet: (k, v) => { store[k] = JSON.parse(JSON.stringify(v)); },
-      backup: () => {}, cachePut: (b, m) => { cache = { body: b, meta: m }; }, cacheGet: () => cache,
-      cacheClear: () => { cache = null; }, withLock: fn => fn(), adminKey: () => 'k',
+      backup: () => {}, cachePut: (b, m, ns) => { cache[ns || ''] = { body: b, meta: m }; }, cacheGet: ns => cache[ns || ''] || null,
+      cacheClear: ns => { delete cache[ns || '']; }, withLock: fn => fn(), adminKey: () => 'k',
       json: o => o, raw: s => JSON.parse(s)
     }
   };
@@ -146,6 +146,7 @@ function api() {
   return {
     post: body => ctx.doPost({ postData: { contents: JSON.stringify(body) } }),
     get: () => ctx.doGet({ parameter: {} }),
+    getNs: ns => ctx.doGet({ parameter: { ns } }),
     advance: ms => { now += ms; },
     store: () => store
   };
@@ -236,4 +237,45 @@ test('API: picks inside the 3-second grace still count', () => {
   a.post({ action: 'admin', key: 'k', op: 'start_draft', rounds: 1, clockSec: 60, order: [x.id, y.id] });
   a.advance(61500);   // 1.5s past the deadline
   assert.ok(a.post({ action: 'pick', token: x.token, castawayId: 'rob', n: 0 }).ok);
+});
+
+test('API: practice sandbox is isolated, bots draft fast, episodes simulate', () => {
+  const a = api();
+  const P = b => a.post(Object.assign({ ns: 'practice' }, b));
+  const G = () => JSON.parse(JSON.stringify(a.get()));   // real league view
+  a.post({ action: 'join', name: 'Real', email: 'real@x.com' });
+  const me = P({ action: 'join', name: 'Tester', email: 't@x.com' }).me;
+  assert.strictEqual(P({ action: 'practice', op: 'start', bots: 5, clockSec: 45, botSec: 3 }).ok, true);
+  // Real league untouched.
+  assert.strictEqual(G().data.league.players.length, 1);
+  assert.strictEqual(G().data.league.draft.status, 'open');
+  // Run the practice draft: the human picks on their turn, bots auto-pick every few seconds.
+  const pubP = () => { const ctx = a; return ctx.getNs('practice').data.league; };
+  for (let i = 0; i < 200; i++) {
+    const L = pubP();
+    if (L.draft.status === 'complete') break;
+    const slot = L.draft.order.length && (function () { const d = L.draft, n = d.picks.length, N = d.order.length, r = Math.floor(n / N), pos = n % N; return { n, pid: d.order[r % 2 ? N - 1 - pos : pos] }; })();
+    if (slot.pid === me.id) {
+      const legal = ['rob', 'ori', 'kilby', 'mike', 'devin', 'jelly', 'ana', 'eric'].find(id => P({ action: 'pick', token: me.token, castawayId: id, n: slot.n }).ok);
+      assert.ok(legal);
+    } else a.advance(3500 + 3000);
+  }
+  assert.strictEqual(pubP().draft.status, 'complete');
+  const e = P({ action: 'practice', op: 'episode' });
+  assert.ok(e.ok, e.error);
+  assert.strictEqual(e.ep, 3);
+  assert.strictEqual(pubP().castaways[e.boot].status, 'eliminated');
+  assert.strictEqual(a.post({ action: 'practice', op: 'episode' }).error, 'practice_only');
+  // Practice admin key works only in practice.
+  assert.ok(P({ action: 'admin', key: 'practice', op: 'whoami' }).ok);
+  assert.strictEqual(a.post({ action: 'admin', key: 'practice', op: 'whoami' }).error, 'bad_admin_key');
+});
+
+test('API: purge deletes test sign-ups before the draft', () => {
+  const a = api();
+  a.post({ action: 'join', name: 'Keep', email: 'keep@x.com' });
+  a.post({ action: 'join', name: 'R1', email: 'rehearsal1@example.com' });
+  const r = a.post({ action: 'admin', key: 'k', op: 'purge', match: 'rehearsal' });
+  assert.strictEqual(r.purged, 1);
+  assert.strictEqual(a.get().data.league.players.length, 1);
 });

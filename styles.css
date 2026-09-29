@@ -197,6 +197,7 @@ label.field > span { display: block; font-size: 12.5px; font-weight: 700; color:
   padding: 10px 16px; font-weight: 700; font-size: 14px; text-align: center;
   background: linear-gradient(90deg, #7A1F0E, #B8401A, #7A1F0E); color: #fff;
 }
+.banner.practice { background: linear-gradient(90deg, #0F3D2E, #17624A, #0F3D2E); }
 .banner.yours { background: linear-gradient(90deg, #C2410C, var(--ember), var(--flame), var(--ember), #C2410C); background-size: 200% 100%; animation: shimmer 2s linear infinite; color: #1A0E05; }
 .banner .btn { padding: 6px 12px; font-size: 13px; }
 @keyframes shimmer { to { background-position: -200% 0; } }

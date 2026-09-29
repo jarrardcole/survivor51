@@ -14,11 +14,20 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
+  var PRACTICE = !!CONFIG.PRACTICE;
+  var PFX = PRACTICE ? 's51p_' : 's51_';   // practice never touches your real sign-in
   var store = {
-    get: function (k, d) { try { var v = localStorage.getItem('s51_' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
-    set: function (k, v) { try { localStorage.setItem('s51_' + k, JSON.stringify(v)); } catch (e) { /* private mode */ } },
-    del: function (k) { try { localStorage.removeItem('s51_' + k); } catch (e) { /* ignore */ } }
+    get: function (k, d) { try { var v = localStorage.getItem(PFX + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set: function (k, v) { try { localStorage.setItem(PFX + k, JSON.stringify(v)); } catch (e) { /* private mode */ } },
+    del: function (k) { try { localStorage.removeItem(PFX + k); } catch (e) { /* ignore */ } }
   };
+  // Build a link to the site, keeping practice mode if we're in it.
+  function siteUrl(query, hash) {
+    var q = [];
+    if (PRACTICE) q.push('practice');
+    if (query) q.push(query);
+    return CONFIG.SITE_URL + (q.length ? '?' + q.join('&') : '') + (hash || '');
+  }
   function ordinal(n) { var s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
   function plural(n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); }
 
@@ -76,7 +85,7 @@
     var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
     var timer = ctrl && setTimeout(function () { ctrl.abort(); }, 10000);
     var sent = Date.now();
-    return fetch(CONFIG.API_URL + '?action=state&t=' + sent, { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
+    return fetch(CONFIG.API_URL + '?action=state' + (PRACTICE ? '&ns=practice' : '') + '&t=' + sent, { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
       .then(function (r) { if (!r.ok) throw new Error('http_' + r.status); return r.json(); })
       .then(function (res) { if (timer) clearTimeout(timer); res._rtt = Date.now() - sent; return res; },
             function (e) { if (timer) clearTimeout(timer); throw e; });
@@ -86,7 +95,7 @@
     var timer = ctrl && setTimeout(function () { ctrl.abort(); }, 25000);
     return fetch(CONFIG.API_URL, {
       method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(body), signal: ctrl ? ctrl.signal : undefined
+      body: JSON.stringify(PRACTICE ? Object.assign({ ns: 'practice' }, body) : body), signal: ctrl ? ctrl.signal : undefined
     }).then(function (r) { return r.json(); })
       .then(function (res) {
         if (timer) clearTimeout(timer);
@@ -311,6 +320,10 @@
 
     var banner = $('#banner');
     var html = '', cls = '';
+    if (PRACTICE && !S.tv) {
+      html = '🧪 Practice mode: bots, fake episodes, nothing counts. <a class="btn sm" href="' + esc(CONFIG.SITE_URL) + '">Go to the real league</a>';
+      cls = 'practice';
+    }
     if (S.failures >= 3) {
       html = '⚠️ Can’t reach the server. Retrying…';
     } else if (lk) {
@@ -427,6 +440,8 @@
       if (lastPick) toast(playerName(S.data.league, lastPick.pick.playerId) + ' took ' + CASTBY[lastPick.pick.castawayId].shortName + '. You’re up!');
       return;
     }
+    // If we've fallen far behind (fast bots, a wifi blip), skip ahead to the latest picks.
+    if (S.revealQueue.length > 3) S.revealQueue = S.revealQueue.slice(-2);
     var backlog = S.revealQueue.length;   // speed up when picks arrive faster than we can show them
     var item = S.revealQueue.shift();
     S.revealing = true;
@@ -561,8 +576,8 @@
     h += '<div class="hero">';
     if (phase === 'open') {
       var draftAt = L.draftAt ? new Date(L.draftAt).getTime() : null;
-      h += '<div class="eyebrow">Season 51 · Fiji · The Open Era</div>' +
-        '<h1>Draft night is <em>coming</em></h1>' +
+      h += '<div class="eyebrow">' + (PRACTICE ? '🧪 Practice league' : 'Season 51 · Fiji · The Open Era') + '</div>' +
+        '<h1>' + (PRACTICE ? 'Take it for a <em>test drive</em>' : 'Draft night is <em>coming</em>') + '</h1>' +
         '<p>Twenty castaways are left after the premiere. We draft on Episode 2 night (Wed, Sep 30). Everyone picks from their own phone, so it works the same in the room or across the country.</p>' +
         (draftAt ? '<div class="countdown" data-countdown="' + draftAt + '"></div>' : '') +
         '<div class="row">' + (amIn()
@@ -592,6 +607,7 @@
     h += '</div>';
 
     h += spoilerBar(v);
+    if (PRACTICE) h += '<div style="margin-top:18px">' + practiceLab() + '</div>';
 
     // Commissioner's Notes
     h += '<div class="split" style="margin-top:18px">';
@@ -604,6 +620,25 @@
     }
     h += '</div></div>';
     $('#page-home').innerHTML = h;
+  }
+
+  // ---------- Practice lab ----------
+  function practiceLab() {
+    var L = S.data.league;
+    var d = L.draft;
+    var h = '<div class="card" style="border-color:rgba(94,217,160,.35)"><div class="row" style="margin-bottom:10px"><span style="font-size:26px">🧪</span><div class="grow"><h3 style="margin:0">Practice lab</h3><div class="small muted">Try everything with bots before the real thing. Anyone can reset this.</div></div></div>';
+    if (!amIn()) {
+      h += '<div class="steps small"><div><div><b>Join the practice league</b> with any name and email (it’s separate from the real one).</div></div><div><div>Start a practice draft against bots. They pick in about 3 seconds; you get 45.</div></div><div><div>After the draft, simulate episodes to see standings move.</div></div></div>' +
+        '<div class="row" style="margin-top:12px"><a class="btn primary" href="#join">Join practice</a><button class="btn" data-act="signin">Sign in</button></div>';
+      return h + '</div>';
+    }
+    h += '<div class="row">';
+    if (d.status === 'open' || d.status === 'complete') h += '<button class="btn primary" data-act="p_start">🔥 ' + (d.status === 'open' ? 'Start a practice draft vs bots' : 'Draft again') + '</button>';
+    else h += '<a class="btn primary" href="#draft">Go to the draft room →</a>';
+    if (d.status === 'complete') h += '<button class="btn" data-act="p_episode">📺 Simulate next episode</button>';
+    h += '<button class="btn ghost" data-act="p_reset">Reset practice</button></div>';
+    h += '<div class="row small" style="margin-top:12px"><span class="muted">Also try:</span><a href="' + esc(siteUrl('admin=practice', '#admin')) + '">Will’s admin view</a><span class="dim">·</span><a href="' + esc(siteUrl('tv')) + '" target="_blank" rel="noopener">TV view</a><span class="dim">·</span><button class="btn sm ghost" data-act="copy" data-url="' + esc(S.me.token ? personalLink(S.me.token) : '') + '">Copy my practice link (open on your phone)</button></div>';
+    return h + '</div>';
   }
 
   function nextEpisode() {
@@ -694,6 +729,8 @@
     var h = '<div style="max-width:560px;margin:0 auto" class="stack">';
     if (amIn()) {
       h += '<div class="card center"><div style="font-size:40px">🔥</div><h2>You’re in, ' + esc(S.me.name.split(' ')[0]) + '.</h2><p class="muted">Next: rank your board so the auto-pick has your back.</p><a class="btn primary lg" href="#draft">Rank your board →</a></div>';
+    } else if (L.draft.status !== 'open' && PRACTICE) {
+      h += '<div class="card center stack"><h2>A practice draft is running</h2><p class="muted">Reset the practice league to join, then start your own.</p><button class="btn primary" data-act="p_reset">Reset practice</button></div>';
     } else if (L.draft.status !== 'open') {
       h += '<div class="card center"><h2>The draft already happened</h2><p class="muted">Want in anyway? Ask Will to add you. If you already joined, sign in.</p><button class="btn primary" data-act="signin">Sign in</button></div>';
     } else {
@@ -727,8 +764,8 @@
     if (S.draftTab === 'main') kind = 'main';
     var d = draftOf(kind);
     var el = $('#page-draft');
-    if (d.status === 'open') { el.innerHTML = draftPrep(v); return; }
-    el.innerHTML = draftRoom(v, kind);
+    if (d.status === 'open') { el.innerHTML = (PRACTICE ? practiceLab() : '') + draftPrep(v); return; }
+    el.innerHTML = draftRoom(v, kind) + (PRACTICE && d.status === 'complete' ? '<div style="margin-top:18px">' + practiceLab() + '</div>' : '');
   }
 
   // Pre-draft: rank your board + winner bet
@@ -866,7 +903,7 @@
     if (!el) return;
     var go = function () {
       var q = window.qrcode(0, 'M');
-      q.addData(CONFIG.SITE_URL + '#draft'); q.make();
+      q.addData(siteUrl('', '#draft')); q.make();
       el.innerHTML = q.createSvgTag({ cellSize: 3, margin: 0, scalable: true });
       var svg = el.querySelector('svg'); if (svg) { svg.style.width = '100%'; svg.style.height = '100%'; }
     };
@@ -1222,10 +1259,9 @@
 
     // Links
     h += '<div class="card stack"><h3>Links to share</h3>' +
-      linkRow('Sign-up link', CONFIG.SITE_URL + '#join') +
-      linkRow('Draft room', CONFIG.SITE_URL + '#draft') +
-      linkRow('TV mode (big screen)', CONFIG.SITE_URL + '?tv') +
-      linkRow('Admin link (keep private)', CONFIG.SITE_URL + '?admin=' + S.adminKey + '#admin') + '</div>';
+      linkRow('The one link to share', siteUrl()) +
+      linkRow('TV mode (big screen)', siteUrl('tv')) +
+      linkRow('Admin link (keep private)', siteUrl('admin=' + S.adminKey, '#admin')) + '</div>';
 
     // Merge
     h += '<div class="card stack"><h3>Merge draft · <span class="chip">' + m.status.toUpperCase() + '</span></h3>';
@@ -1245,7 +1281,7 @@
     return h;
   }
 
-  function personalLink(token) { return CONFIG.SITE_URL + '?me=' + token; }
+  function personalLink(token) { return siteUrl('me=' + token); }
 
   function linkRow(label, url) {
     return '<div><div class="small muted">' + esc(label) + '</div><div class="row" style="flex-wrap:nowrap"><input class="input" readonly value="' + esc(url) + '" style="font-size:13px"><button class="btn sm" data-act="copy" data-url="' + esc(url) + '">Copy</button></div></div>';
@@ -1489,6 +1525,25 @@
       case 'notes': S.notesEp = Number(t.dataset.ep); render(); return;
       case 'lbrow': S.openRow = S.openRow === id ? null : id; render(); return;
       case 'series': S.hiddenSeries[id] = !S.hiddenSeries[id]; render(); return;
+      case 'p_start':
+        t.disabled = true; t.textContent = 'Setting up bots…';
+        apiPost({ action: 'practice', op: 'start', bots: 8, clockSec: 45, botSec: 3 }).then(function (res) {
+          S.seenStatus.main = 'open';
+          acceptLeague(res.league); location.hash = '#draft';
+        }).catch(function (err) { toast(errMsg(err), true); t.disabled = false; });
+        return;
+      case 'p_episode':
+        t.disabled = true;
+        apiPost({ action: 'practice', op: 'episode' }).then(function (res) {
+          toast('Episode ' + res.ep + ': ' + CASTBY[res.boot].shortName + ' was voted out.');
+          return poll();
+        }).catch(function (err) { toast(errMsg(err), true); }).then(function () { t.disabled = false; });
+        return;
+      case 'p_reset':
+        if (!confirm('Reset the practice league? (The real league is not affected.)')) return;
+        apiPost({ action: 'practice', op: 'reset' }).then(function (res) { S.seenPicks = { main: null, merge: null }; acceptLeague(res.league); toast('Practice reset'); poll(); })
+          .catch(function (err) { toast(errMsg(err), true); });
+        return;
       case 'copy':
         if (navigator.clipboard) navigator.clipboard.writeText(t.dataset.url).then(function () { toast('Copied'); });
         return;

@@ -5,6 +5,8 @@ var CONFIG = {
   API_URL: LOCAL ? '/api' : 'https://script.google.com/macros/s/AKfycbzPTwbKWQstw-R9rxot9GI0RvYyuFPGwKm7CcKREoEFZwalVVF_2a0zthfYEMCl9fk/exec',
   SITE_URL: 'https://jarrardcole.github.io/survivor51/',
   SEASON: 51,
+  // ?practice = the sandbox: same site, separate data, bots, resettable by anyone.
+  PRACTICE: /[?&]practice\b/.test(location.search),
   // Wednesday nights, 8pm ET. Used for "next episode" countdowns.
   AIR_DATES: {
     1: '2026-09-23T20:00:00-04:00',

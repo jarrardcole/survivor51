@@ -17,7 +17,7 @@ const PORT = Number(process.argv[2] || process.env.PORT || 8751);
 const LATENCY = Number(process.env.MOCK_LATENCY || 250);
 
 let store = {};
-let cache = null;
+let cache = {};
 
 const Platform = {
   storeLoadAll: () => JSON.parse(JSON.stringify(store)),
@@ -27,9 +27,9 @@ const Platform = {
     store[k] = JSON.parse(json);
   },
   backup: () => {},
-  cachePut: (body, meta) => { cache = { body, meta }; },
-  cacheGet: () => cache,
-  cacheClear: () => { cache = null; },
+  cachePut: (body, meta, ns) => { cache[ns || ''] = { body, meta }; },
+  cacheGet: (ns) => cache[ns || ''] || null,
+  cacheClear: (ns) => { delete cache[ns || '']; },
   withLock: (fn) => fn(),            // node is single-threaded: requests never interleave
   adminKey: () => 'dev',
   json: (obj) => ({ body: JSON.stringify(obj) }),
@@ -63,7 +63,7 @@ http.createServer((req, res) => {
     }, url.pathname === '/api' ? LATENCY : 0);
   };
 
-  if (url.pathname === '/__reset' && req.method === 'POST') { store = {}; cache = null; return send(200, '{"ok":true}'); }
+  if (url.pathname === '/__reset' && req.method === 'POST') { store = {}; cache = {}; return send(200, '{"ok":true}'); }
   if (url.pathname === '/__seed' && req.method === 'POST') { seed(Number(url.searchParams.get('n') || 9)); return send(200, '{"ok":true}'); }
   if (url.pathname === '/__dump') return send(200, JSON.stringify(store, null, 2));
 
