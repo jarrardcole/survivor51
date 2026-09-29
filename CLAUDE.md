@@ -1,7 +1,7 @@
 # Survivor 51 Fantasy League
 
 Status: Active
-Next: Deploy (GitHub Pages + new Apps Script), post the preseason write-up, send the sign-up link before the Sep 30 draft.
+Next: Jarrard tests practice mode; then send the one link to the group, set the draft start time (auto-start), give Will the admin link. Open question: "The Machine" AI shadow team.
 
 ## What it is
 Season 51 of the friends' Survivor fantasy league (Season 50 lives in `fun/survivor-draft`, repo `survivor50`).
@@ -44,6 +44,18 @@ Jarrard is remote on draft night, so the draft is fully self-serve: every player
   appends a row to `Backups`.
 - GET responses are cached in CacheService (chunked) and invalidated on write.
 - Admin key lives in Script Properties (`setup()` creates it). Admin link: `SITE_URL?admin=KEY#admin`.
+
+## Live (Sep 28, 2026)
+- Site: https://jarrardcole.github.io/survivor51/ (the one link). Practice sandbox: `?practice` (bots, fake episodes; practice admin key is `practice`).
+- Backend: Apps Script web app, deployment "Survivor 51 v1" (now Version 3), bound to the Sheet "Survivor 51 Fantasy — backend".
+  URLs, Sheet link and the real admin key are in `.env.local` (git-ignored). Never commit the admin key.
+- Personal links: `?me=<token>` signs a player in on any device. Admin → Players → "Copy all links".
+- `tools/rehearse.js` runs a full draft against the live backend in the practice namespace (races, timeouts, purge). Last run:
+  18 picks, 0 errors, and with 12 simultaneous pollers p50 ~1s / p90 2.6s / max 5.3s, 0 busy.
+- Lesson: one Apps Script execution stalled for 6 min holding the script lock (Google-side). Reads are now lock-free
+  (`tryWithLock` + fall back to cached/stored state), writes wait max 8s, backups flush after the lock, slow locks log to Executions.
+- Redeploy: paste `apps-script/Code.gs` (fetch from GitHub raw by commit into Monaco via `monaco.editor.getModels()[0].setValue`),
+  save, Deploy → Manage deployments → Edit → Version: **New version** (select by ref) → Deploy.
 
 ## Weekly routine (after each episode)
 1. Admin → Scoring → pick the episode, tick the boxes, mark who went home, Save. (Or Claude posts `save_episode` via the API.)
