@@ -1,7 +1,7 @@
 # Survivor 51 Fantasy League
 
 Status: Active
-Next: Jarrard tests practice mode; then send the one link to the group, set the draft start time (auto-start), give Will the admin link. Open question: "The Machine" AI shadow team.
+Next: Jarrard tests practice mode; then send the one link to the group, set the draft start time (auto-start), give Will the admin link. The Machine is built and put to a league vote (sign-up + homepage).
 
 ## What it is
 Season 51 of the friends' Survivor fantasy league (Season 50 lives in `fun/survivor-draft`, repo `survivor50`).
@@ -47,7 +47,7 @@ Jarrard is remote on draft night, so the draft is fully self-serve: every player
 
 ## Live (Sep 28, 2026)
 - Site: https://jarrardcole.github.io/survivor51/ (the one link). Practice sandbox: `?practice` (bots, fake episodes; practice admin key is `practice`).
-- Backend: Apps Script web app, deployment "Survivor 51 v1" (now Version 3), bound to the Sheet "Survivor 51 Fantasy — backend".
+- Backend: Apps Script web app, deployment "Survivor 51 v1" (now Version 4), bound to the Sheet "Survivor 51 Fantasy — backend".
   URLs, Sheet link and the real admin key are in `.env.local` (git-ignored). Never commit the admin key.
 - Personal links: `?me=<token>` signs a player in on any device. Admin → Players → "Copy all links".
 - `tools/rehearse.js` runs a full draft against the live backend in the practice namespace (races, timeouts, purge). Last run:
@@ -56,6 +56,11 @@ Jarrard is remote on draft night, so the draft is fully self-serve: every player
   (`tryWithLock` + fall back to cached/stored state), writes wait max 8s, backups flush after the lock, slow locks log to Executions.
 - Redeploy: paste `apps-script/Code.gs` (fetch from GitHub raw by commit into Monaco via `monaco.editor.getModels()[0].setValue`),
   save, Deploy → Manage deployments → Edit → Version: **New version** (select by ref) → Deploy.
+
+## The Machine (added Sep 28)
+- Optional AI shadow team, decided by league vote (yay/nay at sign-up or on the homepage; locks at draft start; ties = no Machine; Will can force on/off in Admin → Draft).
+- Plan + one-liners in `machine.json` (bundled into cast.js by build.sh). It picks once at the end of each main-draft round, never counts against the 2-pick cap, can't win; standings show it as a dashed benchmark row/line.
+- Weekly write-ups can needle whoever is losing to it.
 
 ## Weekly routine (after each episode)
 1. Admin → Scoring → pick the episode, tick the boxes, mark who went home, Save. (Or Claude posts `save_episode` via the API.)
