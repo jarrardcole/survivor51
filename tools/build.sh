@@ -25,3 +25,8 @@ require("fs").writeFileSync("cast.js", out);
 } | grep -v '^if (typeof module' > apps-script/Code.gs
 
 echo "built cast.js and apps-script/Code.gs ($(wc -l < apps-script/Code.gs) lines)"
+
+# Cache-bust the site's own files so phones never run yesterday's JavaScript.
+V=$(date +%s)
+sed -i '' -E "s#(src|href)=\"(config|cast|engine|app)\.(js)(\?v=[0-9]+)?\"#\1=\"\2.\3?v=$V\"#g; s#href=\"styles\.css(\?v=[0-9]+)?\"#href=\"styles.css?v=$V\"#" index.html
+echo "stamped index.html assets with v=$V"
