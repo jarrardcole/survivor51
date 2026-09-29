@@ -79,7 +79,7 @@ function publicPayload() {
   if (cached) {
     var meta = cached.meta;
     var now = Date.now();
-    var due = (meta.main && now >= meta.main) || (meta.merge && now >= meta.merge);
+    var due = (meta.main && now >= meta.main) || (meta.merge && now >= meta.merge) || (meta.start && now >= meta.start);
     if (!due) return withTime(cached.body);
   }
   // Cache miss or a pick clock has expired: rebuild from the sheet (under lock if we may write).
@@ -88,12 +88,19 @@ function publicPayload() {
     var again = Platform.cacheGet();
     if (again) {
       var m2 = again.meta, t2 = Date.now();
-      if (!((m2.main && t2 >= m2.main) || (m2.merge && t2 >= m2.merge))) return again.body;
+      if (!((m2.main && t2 >= m2.main) || (m2.merge && t2 >= m2.merge) || (m2.start && t2 >= m2.start))) return again.body;
     }
     var all = loadAll();
     var league = all[LEAGUE_KEY];
     var now = Date.now();
     var changed = false;
+    // Scheduled start: the draft begins on its own at league.draftAt if autoStart is on.
+    if (league.draft.status === 'open' && league.autoStart && league.draftAt && now >= Date.parse(league.draftAt)) {
+      try {
+        Engine.startDraft(league, CAST, { now: now, revealSec: 20, rounds: autoRounds(league) });
+        changed = true;
+      } catch (e) { league.autoStart = false; league.autoStartError = e.code || e.message; changed = true; }
+    }
     ['main', 'merge'].forEach(function (kind) {
       var r = Engine.tick(league, CAST, kind, now, queuesOf(all));
       if (r) { changed = true; onDraftProgress(all, kind); }
@@ -102,10 +109,18 @@ function publicPayload() {
     var body = buildPublicBody(all);
     Platform.cachePut(body, {
       main: league.draft.status === 'live' ? league.draft.deadline : null,
-      merge: league.merge.status === 'live' ? league.merge.deadline : null
+      merge: league.merge.status === 'live' ? league.merge.deadline : null,
+      start: league.draft.status === 'open' && league.autoStart && league.draftAt ? Date.parse(league.draftAt) : null
     });
     return body;
   }));
+}
+
+// As many rounds as the board allows, up to the configured number.
+function autoRounds(league) {
+  var n = Engine.activePlayers(league).length || 1;
+  var cap = Engine.activeCastawayIds(league, CAST).length * league.settings.maxPerCastaway;
+  return Math.max(1, Math.min(league.settings.rounds, Math.floor(cap / n)));
 }
 
 function withTime(body) {
@@ -284,6 +299,7 @@ function actAdmin(b) {
       if (b.currentEp) league.currentEp = Number(b.currentEp);
       if (b.nextAir !== undefined) league.nextAir = b.nextAir;
       if (b.draftAt !== undefined) league.draftAt = b.draftAt;
+      if (b.autoStart !== undefined) { league.autoStart = !!b.autoStart; league.autoStartError = null; }
       break;
     }
 

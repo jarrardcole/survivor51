@@ -193,3 +193,15 @@ test('API: episode save sets eliminations and re-saving the episode replaces the
   assert.strictEqual(pub.league.castaways.mike.eliminatedEp, 3);
   assert.ok(pub.episodes['3']);
 });
+
+test('API: scheduled auto-start kicks off the draft on the first poll after draftAt', () => {
+  const a = api();
+  a.post({ action: 'join', name: 'A', email: 'a@x.com' });
+  a.post({ action: 'join', name: 'B', email: 'b@x.com' });
+  a.post({ action: 'admin', key: 'k', op: 'settings', draftAt: new Date(1_000_000 + 60000).toISOString(), autoStart: true });
+  assert.strictEqual(a.get().data.league.draft.status, 'open');
+  a.advance(61000);
+  const L = a.get().data.league;
+  assert.strictEqual(L.draft.status, 'live');
+  assert.strictEqual(L.draft.rounds, 4);
+});

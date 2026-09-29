@@ -1155,7 +1155,8 @@
         '<div class="row"><label class="field grow"><span>Rounds</span><input class="input" id="aRounds" type="number" min="1" max="' + maxRounds + '" value="' + Math.min(L.settings.rounds, maxRounds) + '"></label>' +
         '<label class="field grow"><span>Seconds per pick</span><input class="input" id="aClock" type="number" min="20" max="600" value="' + L.settings.clockSec + '"></label></div>' +
         '<p class="tiny dim" style="margin:0">Starting randomizes the order, shows everyone the order reveal, and starts pick 1’s clock (with 20 extra seconds for the reveal). New sign-ups close.</p>' +
-        '<button class="btn primary lg block" data-act="a_start" ' + (ps.length < 2 ? 'disabled' : '') + '>🔥 Start the draft</button>';
+        '<button class="btn primary lg block" data-act="a_start" ' + (ps.length < 2 ? 'disabled' : '') + '>🔥 Start the draft</button>' +
+        (L.autoStart && L.draftAt ? '<div class="chip good">Starts automatically ' + esc(new Date(L.draftAt).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })) + '</div>' : '<div class="tiny dim">Tip: Settings → set a start time and tick “start automatically.”</div>');
     } else if (d.status === 'live' || d.status === 'paused') {
       var slot = Engine.currentSlot(d);
       h += '<div class="row"><div class="grow"><div class="small muted">On the clock</div><b style="font-size:20px;color:' + esc(playerColor(L, slot.playerId)) + '">' + esc(playerName(L, slot.playerId)) + '</b> <span class="muted">#' + (slot.n + 1) + '</span></div><div class="display" style="font-size:34px" data-clock="main"></div></div>' +
@@ -1289,6 +1290,8 @@
     var local = dt ? new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
     return '<div class="card stack" style="max-width:560px"><h3>League settings</h3>' +
       '<label class="field"><span>Draft start time (shows a countdown on the homepage)</span><input class="input" id="sDraftAt" type="datetime-local" value="' + local + '"></label>' +
+      '<label class="row small"><input type="checkbox" id="sAuto" ' + (L.autoStart ? 'checked' : '') + ' style="width:20px;height:20px;accent-color:var(--ember)"> Start the draft automatically at that time</label>' +
+      (L.autoStartError ? '<div class="chip bad">Auto-start failed: ' + esc(ERRORS[L.autoStartError] || L.autoStartError) + '</div>' : '') +
       num('sRounds', 'Draft rounds', s.rounds) + num('sClock', 'Seconds per pick', s.clockSec) +
       num('sStart', 'Scoring starts at episode', s.scoringStartEp) + num('sBet', 'Winner bet points', s.winnerBetPoints) +
       num('sCur', 'Current episode', L.currentEp || 2) +
@@ -1517,7 +1520,7 @@
         var at = $('#sDraftAt').value;
         admin('settings', {
           settings: { rounds: $('#sRounds').value, clockSec: $('#sClock').value, scoringStartEp: $('#sStart').value, winnerBetPoints: $('#sBet').value },
-          currentEp: $('#sCur').value, draftAt: at ? new Date(at).toISOString() : null
+          currentEp: $('#sCur').value, draftAt: at ? new Date(at).toISOString() : null, autoStart: $('#sAuto').checked
         }).then(adminDone('Settings saved')).catch(adminFail);
         return;
       }
