@@ -173,7 +173,7 @@ test('API: join, dedupe, prefs, draft, stale pick, winner bets hidden until comp
   assert.strictEqual(a.post({ action: 'pick', email: 'will@example.com', castawayId: 'ori', n: 0 }).error, 'stale_pick');
 
   // Jarrard's clock runs out: the GET poll auto-picks his first queued castaway.
-  a.advance(91000);
+  a.advance(94000);
   pub = a.get().data;
   assert.strictEqual(pub.league.draft.picks[1].castawayId, 'kilby');
   assert.strictEqual(pub.league.draft.status, 'complete');
@@ -204,4 +204,36 @@ test('API: scheduled auto-start kicks off the draft on the first poll after draf
   const L = a.get().data.league;
   assert.strictEqual(L.draft.status, 'live');
   assert.strictEqual(L.draft.rounds, 4);
+});
+
+test('a completely full board lifts the cap for a last pick instead of skipping', () => {
+  const l = leagueWith(10);
+  E.startDraft(l, CAST, { now: 0, rounds: 4, order: l.players.map(p => p.id) });
+  // Fill 39 picks so the last player's only open castaway is one they already own.
+  const ids = CAST.filter(c => c.status === 'active').map(c => c.id);
+  l.draft.picks = [];
+  for (let n = 0; n < 39; n++) {
+    const s = E.slotInfo(l.draft, n);
+    l.draft.picks.push({ n, playerId: s.playerId, castawayId: ids[Math.floor(n / 2) % 20] });
+  }
+  const last = E.currentSlot(l.draft);
+  const legal = E.legalPicks(l, CAST, 'main', last.playerId);
+  assert.ok(legal.length > 0, 'someone is always pickable');
+});
+
+test('API: personal link token signs in and picks', () => {
+  const a = api();
+  const j = a.post({ action: 'join', name: 'Tok', email: 't@x.com' });
+  assert.ok(j.me.token && j.me.token.length >= 8);
+  assert.strictEqual(a.post({ action: 'login', token: j.me.token }).me.id, j.me.id);
+  assert.strictEqual(a.post({ action: 'login', token: 'nope' }).error, 'not_found');
+});
+
+test('API: picks inside the 3-second grace still count', () => {
+  const a = api();
+  const x = a.post({ action: 'join', name: 'X', email: 'x@x.com' }).me;
+  const y = a.post({ action: 'join', name: 'Y', email: 'y@x.com' }).me;
+  a.post({ action: 'admin', key: 'k', op: 'start_draft', rounds: 1, clockSec: 60, order: [x.id, y.id] });
+  a.advance(61500);   // 1.5s past the deadline
+  assert.ok(a.post({ action: 'pick', token: x.token, castawayId: 'rob', n: 0 }).ok);
 });

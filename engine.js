@@ -171,7 +171,18 @@ var Engine = (function () {
   }
 
   // Why a castaway can't be picked right now (null = legal).
+  // If every castaway is blocked by the two-pick cap (can happen on the very last picks
+  // of a completely full board), the cap is lifted for that one pick instead of skipping.
   function pickBlocker(league, cast, kind, playerId, castawayId) {
+    var b = strictBlocker(league, cast, kind, playerId, castawayId);
+    if (b !== 'off_board') return b;
+    for (var i = 0; i < cast.length; i++) {
+      if (!strictBlocker(league, cast, kind, playerId, cast[i].id)) return 'off_board';
+    }
+    return null;
+  }
+
+  function strictBlocker(league, cast, kind, playerId, castawayId) {
     var draft = kind === 'merge' ? league.merge : league.draft;
     var st = castawayStatus(league, cast, castawayId);
     if (!st) return 'unknown_castaway';

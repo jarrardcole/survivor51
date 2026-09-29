@@ -12,6 +12,8 @@
 
 var PRIVATE_KEY = 'private';
 var LEAGUE_KEY = 'league';
+// Picks sent in the last seconds still count: network lag means phones show a little more time than the server has.
+var GRACE_MS = 3000;
 
 function doGet(e) {
   try {
@@ -58,8 +60,8 @@ function saveLeague(all, reason) {
   league.version = (league.version || 0) + 1;
   league.updatedAt = Date.now();
   Platform.storeSet(LEAGUE_KEY, league);
-  Platform.backup(reason, league);
   Platform.cacheClear();
+  Platform.backup(reason, league);
 }
 
 function savePrivate(all) {
@@ -102,14 +104,14 @@ function publicPayload() {
       } catch (e) { league.autoStart = false; league.autoStartError = e.code || e.message; changed = true; }
     }
     ['main', 'merge'].forEach(function (kind) {
-      var r = Engine.tick(league, CAST, kind, now, queuesOf(all));
+      var r = Engine.tick(league, CAST, kind, now - GRACE_MS, queuesOf(all));
       if (r) { changed = true; onDraftProgress(all, kind); }
     });
     if (changed) saveLeague(all, 'autopick');
     var body = buildPublicBody(all);
     Platform.cachePut(body, {
-      main: league.draft.status === 'live' ? league.draft.deadline : null,
-      merge: league.merge.status === 'live' ? league.merge.deadline : null,
+      main: league.draft.status === 'live' && league.draft.deadline ? league.draft.deadline + GRACE_MS : null,
+      merge: league.merge.status === 'live' && league.merge.deadline ? league.merge.deadline + GRACE_MS : null,
       start: league.draft.status === 'open' && league.autoStart && league.draftAt ? Date.parse(league.draftAt) : null
     });
     return body;
@@ -174,9 +176,28 @@ function findByEmail(all, email) {
   return null;
 }
 
+// Players are identified by their personal link token (preferred) or their email.
+function findPlayer(all, b) {
+  var tok = String(b.token || '');
+  if (tok) {
+    var byId = all[PRIVATE_KEY].byId;
+    var league = all[LEAGUE_KEY];
+    for (var i = 0; i < league.players.length; i++) {
+      var p = league.players[i];
+      if (!p.removed && byId[p.id] && byId[p.id].token === tok) return p;
+    }
+    if (!b.email) return null;
+  }
+  return findByEmail(all, b.email);
+}
+
+function newToken() {
+  return (Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 8)).slice(0, 10);
+}
+
 function meView(all, p) {
   var pr = all[PRIVATE_KEY].byId[p.id] || {};
-  return { id: p.id, name: p.name, color: p.color, email: pr.email, queue: pr.queue || [], winnerPick: pr.winnerPick || null };
+  return { id: p.id, name: p.name, color: p.color, email: pr.email, token: pr.token || null, queue: pr.queue || [], winnerPick: pr.winnerPick || null };
 }
 
 function validCastaway(id) {
@@ -210,6 +231,7 @@ function addPlayer(all, name, email, extra) {
   league.players.push(p);
   all[PRIVATE_KEY].byId[id] = {
     email: email,
+    token: newToken(),
     queue: cleanQueue(extra && extra.queue),
     winnerPick: extra && validCastaway(extra.winnerPick) ? extra.winnerPick : null
   };
@@ -229,19 +251,19 @@ function actJoin(b) {
 
 function actLogin(b) {
   var all = loadAll();
-  var p = findByEmail(all, b.email);
+  var p = findPlayer(all, b);
   if (!p) Engine.fail('not_found');
   return { me: meView(all, p) };
 }
 
 function actPrefs(b) {
   var all = loadAll();
-  var p = findByEmail(all, b.email);
+  var p = findPlayer(all, b);
   if (!p) Engine.fail('not_found');
   var pr = all[PRIVATE_KEY].byId[p.id];
   if (b.queue !== undefined) pr.queue = cleanQueue(b.queue);
   if (b.winnerPick !== undefined) {
-    if (all[LEAGUE_KEY].draft.status === 'complete') Engine.fail('winner_bet_locked');
+    if (all[LEAGUE_KEY].draft.status === 'complete' || all[LEAGUE_KEY].winnerBets) Engine.fail('winner_bet_locked');
     if (b.winnerPick !== null && !validCastaway(b.winnerPick)) Engine.fail('unknown_castaway');
     pr.winnerPick = b.winnerPick;
   }
@@ -254,11 +276,11 @@ function actPick(b) {
   var all = loadAll();
   var league = all[LEAGUE_KEY];
   var kind = b.kind === 'merge' ? 'merge' : 'main';
-  var p = findByEmail(all, b.email);
+  var p = findPlayer(all, b);
   if (!p) Engine.fail('not_found');
   var now = Date.now();
   // Run the clock first: if time ran out, the auto-pick lands and this submit is stale.
-  var ticked = Engine.tick(league, CAST, kind, now, queuesOf(all));
+  var ticked = Engine.tick(league, CAST, kind, now - GRACE_MS, queuesOf(all));
   if (ticked) { onDraftProgress(all, kind); saveLeague(all, 'autopick'); }
   var slot = Engine.applyPick(league, CAST, kind, p.id, b.castawayId, { now: now, expectedN: b.n });
   onDraftProgress(all, kind);
@@ -285,9 +307,12 @@ function actAdmin(b) {
 
     case 'roster': {           // private player info for the admin console
       var byId = all[PRIVATE_KEY].byId;
+      var minted = false;
+      league.players.forEach(function (p) { if (byId[p.id] && !byId[p.id].token) { byId[p.id].token = newToken(); minted = true; } });
+      if (minted) savePrivate(all);
       return { players: league.players.map(function (p) {
         var pr = byId[p.id] || {};
-        return { id: p.id, name: p.name, color: p.color, removed: !!p.removed, email: pr.email, queue: pr.queue || [], winnerPick: pr.winnerPick || null };
+        return { id: p.id, name: p.name, color: p.color, removed: !!p.removed, email: pr.email, token: pr.token, queue: pr.queue || [], winnerPick: pr.winnerPick || null };
       }) };
     }
 
@@ -330,13 +355,13 @@ function actAdmin(b) {
 
     case 'pause':  Engine.pause(draft, now); break;
     case 'resume': Engine.resume(draft, now); break;
-    case 'undo':   out.undone = Engine.undo(draft, now);
-      if (kind === 'main') league.winnerBets = null;
+    case 'undo':   out.undone = Engine.undo(draft, now);   // winner bets stay locked once revealed
       break;
 
     case 'pick_for': {
       var slot = Engine.currentSlot(draft);
       if (!slot) Engine.fail('draft_not_live');
+      if (b.playerId && b.playerId !== slot.playerId) Engine.fail('stale_pick');
       Engine.applyPick(league, CAST, kind, slot.playerId, b.castawayId, { now: now, admin: true, auto: 'commissioner', expectedN: b.n });
       onDraftProgress(all, kind);
       break;
@@ -365,6 +390,7 @@ function actAdmin(b) {
       break;
 
     case 'start_merge':
+      if (!(Number(b.startEp) >= league.settings.scoringStartEp)) Engine.fail('bad_start_ep');
       Engine.startMerge(league, CAST, { now: now, order: b.order, startEp: Number(b.startEp), clockSec: Number(b.clockSec) || 0 });
       break;
 

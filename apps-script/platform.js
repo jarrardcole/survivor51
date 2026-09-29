@@ -13,7 +13,7 @@ var Platform = (function () {
   var STORE = 'Store';
   var BACKUPS = 'Backups';
   var CACHE_KEY = 'pub';
-  var CHUNK = 90000;           // CacheService values max out at 100KB
+  var CHUNK = 30000;           // CacheService values max out at 100KB (bytes, and notes contain multi-byte characters)
   var _rows = null;            // per-execution index: key → row number
 
   function ss() { return SpreadsheetApp.getActiveSpreadsheet(); }
@@ -61,6 +61,10 @@ var Platform = (function () {
   }
 
   function cachePut(body, meta) {
+    try { cachePutUnsafe(body, meta); } catch (e) { /* a cache failure must never take the site down */ }
+  }
+
+  function cachePutUnsafe(body, meta) {
     var c = CacheService.getScriptCache();
     var parts = {};
     var n = Math.ceil(body.length / CHUNK) || 1;
@@ -70,6 +74,10 @@ var Platform = (function () {
   }
 
   function cacheGet() {
+    try { return cacheGetUnsafe(); } catch (e) { return null; }
+  }
+
+  function cacheGetUnsafe() {
     var c = CacheService.getScriptCache();
     var metaRaw = c.get(CACHE_KEY + ':meta');
     if (!metaRaw) return null;
@@ -127,6 +135,6 @@ function setup() {
     if (!all.league) Platform.storeSet('league', Engine.newLeague(51));
     if (!all['private']) Platform.storeSet('private', { byId: {} });
   });
-  Logger.log('Admin key: ' + key);
+  console.log('Admin key: ' + key);
   return key;
 }

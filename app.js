@@ -45,7 +45,7 @@
     dragging: false,
     lastPollOk: 0,
     failures: 0,
-    sound: store.get('sound', false),
+    sound: store.get('sound', true),
     watched: store.get('watched', 0),
     openRow: null,
     adminTab: store.get('adminTab', 'draft'),
@@ -61,13 +61,25 @@
     history.replaceState(null, '', location.pathname + (params.toString() ? '?' + params : '') + location.hash);
   }
   if (S.tv) document.body.classList.add('tv');
+  var LINK_TOKEN = params.get('me');
+  if (LINK_TOKEN) {
+    params.delete('me');
+    history.replaceState(null, '', location.pathname + (params.toString() ? '?' + params : '') + location.hash);
+  }
+  // Who am I, for every player-scoped call. The personal-link token wins over email.
+  function ident() { return { email: S.me && S.me.email, token: S.me && S.me.token }; }
 
   function now() { return Date.now() + S.offset; }
 
   // ---------- API ----------
   function apiGet() {
-    return fetch(CONFIG.API_URL + '?action=state&t=' + Date.now(), { cache: 'no-store' })
-      .then(function (r) { if (!r.ok) throw new Error('http_' + r.status); return r.json(); });
+    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer = ctrl && setTimeout(function () { ctrl.abort(); }, 10000);
+    var sent = Date.now();
+    return fetch(CONFIG.API_URL + '?action=state&t=' + sent, { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
+      .then(function (r) { if (!r.ok) throw new Error('http_' + r.status); return r.json(); })
+      .then(function (res) { if (timer) clearTimeout(timer); res._rtt = Date.now() - sent; return res; },
+            function (e) { if (timer) clearTimeout(timer); throw e; });
   }
   function apiPost(body) {
     var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -120,9 +132,11 @@
 
   // ---------- data intake ----------
   function acceptPayload(res) {
-    if (res.serverTime) S.offset = res.serverTime - Date.now();
+    // serverTime was stamped roughly mid-flight, so add half the round trip.
+    if (res.serverTime) S.offset = res.serverTime + (res._rtt || 0) / 2 - Date.now();
     var d = res.data;
     var prev = S.data;
+    if (prev && d.league.version < S.version) return false;   // an older response arrived late
     S.data = d;
     var changed = !prev || d.league.version !== S.version;
     S.version = d.league.version;
@@ -134,7 +148,7 @@
     return changed;
   }
   function acceptLeague(league) {
-    if (!S.data) return;
+    if (!S.data || league.version < S.version) return;
     var prev = { league: S.data.league };
     S.data.league = league;
     S.version = league.version;
@@ -165,7 +179,7 @@
   }
 
   // ---------- polling ----------
-  var pollTimer = null;
+  var pollTimer = null, polling = null;
   function liveKind() {
     if (!S.data) return null;
     var L = S.data.league;
@@ -181,7 +195,8 @@
   }
   function poll() {
     clearTimeout(pollTimer);
-    return apiGet().then(function (res) {
+    if (polling) return polling;            // never run two poll loops at once
+    polling = apiGet().then(function (res) {
       S.failures = 0;
       S.lastPollOk = Date.now();
       var changed = acceptPayload(res);
@@ -190,8 +205,11 @@
       S.failures++;
       renderChrome();
     }).then(function () {
+      polling = null;
+      clearTimeout(pollTimer);
       pollTimer = setTimeout(poll, S.failures ? Math.min(15000, 2500 * S.failures) : pollDelay());
     });
+    return polling;
   }
   document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
 
@@ -207,7 +225,7 @@
     $$('[data-route]').forEach(function (a) { a.classList.toggle('active', a.dataset.route === S.route); });
     render();
     window.scrollTo(0, 0);
-    if (S.data) { clearTimeout(pollTimer); pollTimer = setTimeout(poll, Date.now() - S.lastPollOk > 15000 ? 0 : pollDelay()); }
+    if (S.data && !polling) { clearTimeout(pollTimer); pollTimer = setTimeout(poll, Date.now() - S.lastPollOk > 15000 ? 0 : pollDelay()); }
   }
   window.addEventListener('hashchange', route);
 
@@ -358,7 +376,7 @@
     }
     if (key && key !== myTurnKey) {
       if (!S.tv && !$('#reveal').hidden) { $('#reveal').hidden = true; S.revealing = false; }
-      if (navigator.vibrate) navigator.vibrate([250, 120, 250, 120, 400]);
+      if (navigator.vibrate && (!navigator.userActivation || navigator.userActivation.hasBeenActive)) navigator.vibrate([250, 120, 250, 120, 400]);
       if (S.sound) chime();
       if (document.hidden && window.Notification && Notification.permission === 'granted') {
         try { new Notification('🔥 You’re on the clock!', { body: 'Survivor 51 draft: make your pick.' }); } catch (e) { /* ignore */ }
@@ -371,9 +389,19 @@
     myTurnKey = key;
   }
   var audioCtx = null;
-  function chime() {
+  // iPhones only allow sound after a tap, and they don't vibrate from web pages.
+  // Unlock audio on the first tap anywhere so the turn chime can play later.
+  function unlockAudio() {
     try {
       audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    } catch (e) { /* no audio */ }
+  }
+  document.addEventListener('touchend', unlockAudio, { passive: true });
+  document.addEventListener('click', unlockAudio);
+  function chime() {
+    try {
+      unlockAudio();
       [0, 0.18, 0.36].forEach(function (t, i) {
         var o = audioCtx.createOscillator(), g = audioCtx.createGain();
         o.type = 'triangle'; o.frequency.value = [523, 659, 784][i];
@@ -739,7 +767,7 @@
     return '<div class="card"><h3>Draft-night alerts</h3><div class="stack small">' +
       '<label class="row"><input type="checkbox" data-act="sound" ' + (S.sound ? 'checked' : '') + ' style="width:20px;height:20px;accent-color:var(--ember)"> <span class="grow">Play a chime when it’s my turn</span><button class="btn sm ghost" data-act="testsound">Test</button></label>' +
       (window.Notification && Notification.permission !== 'granted' ? '<button class="btn sm" data-act="notify">Allow notifications (desktop)</button>' : '') +
-      '<div class="dim tiny">Phones buzz automatically while this page is open. Keep it open on draft night.</div></div></div>';
+      '<div class="dim tiny">Keep this page open on draft night. Android phones also buzz. iPhones can’t buzz from a web page, so leave the chime on and your volume up (tap anywhere once so the phone allows sound).</div></div></div>';
   }
 
   function filterSeg() {
@@ -814,7 +842,10 @@
     }).join('') + '</div>';
 
     if (S.tv) {
-      h += '<div class="tv-grid" style="margin-top:14px"><div>' + castBoard(v, kind) + '</div><div class="stack">' + feedCard(v, kind, 14) + '</div></div>';
+      h += '<div class="tv-grid" style="margin-top:14px"><div>' + castBoard(v, kind) + '</div><div class="stack">' +
+        '<div class="card row" style="flex-wrap:nowrap"><div id="tvQr" style="width:112px;height:112px;background:#fff;border-radius:10px;padding:6px;flex:none"></div><div><b>Pick from your phone</b><div class="small muted">Scan, sign in with your email, and your board lights up when you’re up.</div></div></div>' +
+        feedCard(v, kind, 12) + '</div></div>';
+      setTimeout(drawQr, 0);
       return h + '<div style="margin-top:18px">' + bigBoard(v, kind) + '</div>';
     }
 
@@ -827,6 +858,23 @@
     h += feedCard(v, kind, 10);
     h += '</div></div>';
     return h;
+  }
+
+  // QR code for the room (TV mode). Library loads only on the TV.
+  function drawQr() {
+    var el = $('#tvQr');
+    if (!el) return;
+    var go = function () {
+      var q = window.qrcode(0, 'M');
+      q.addData(CONFIG.SITE_URL + '#draft'); q.make();
+      el.innerHTML = q.createSvgTag({ cellSize: 3, margin: 0, scalable: true });
+      var svg = el.querySelector('svg'); if (svg) { svg.style.width = '100%'; svg.style.height = '100%'; }
+    };
+    if (window.qrcode) return go();
+    var sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
+    sc.onload = go;
+    document.head.appendChild(sc);
   }
 
   function upNext(d) {
@@ -1163,7 +1211,7 @@
         '<div class="row">' + (d.status === 'live' ? '<button class="btn" data-act="a_pause">❚❚ Pause</button>' : '<button class="btn primary" data-act="a_resume">▶ Resume</button>') +
         '<button class="btn" data-act="a_undo">↶ Undo last pick</button><button class="btn" data-act="a_autopick">⏭ Auto-pick now</button></div>' +
         '<div class="row"><select class="input grow" id="aPickFor">' + CAST.filter(function (c) { return !Engine.pickBlocker(L, CAST, 'main', slot.playerId, c.id); }).map(function (c) { return '<option value="' + c.id + '">' + esc(c.shortName) + '</option>'; }).join('') + '</select>' +
-        '<button class="btn" data-act="a_pickfor">Pick for ' + esc(playerName(L, slot.playerId).split(' ')[0]) + '</button></div>' +
+        '<button class="btn" data-act="a_pickfor" data-n="' + slot.n + '" data-pid="' + slot.playerId + '">Pick for ' + esc(playerName(L, slot.playerId).split(' ')[0]) + '</button></div>' +
         '<div class="row"><label class="field grow"><span>Change clock (sec)</span><input class="input" id="aClock2" type="number" value="' + d.clockSec + '"></label><button class="btn" data-act="a_clock" style="align-self:flex-end">Set</button></div>' +
         '<p class="tiny dim" style="margin:0">Use “Pick for” when someone tells you their pick out loud. Undo reopens the previous slot.</p>';
     } else {
@@ -1197,6 +1245,8 @@
     return h;
   }
 
+  function personalLink(token) { return CONFIG.SITE_URL + '?me=' + token; }
+
   function linkRow(label, url) {
     return '<div><div class="small muted">' + esc(label) + '</div><div class="row" style="flex-wrap:nowrap"><input class="input" readonly value="' + esc(url) + '" style="font-size:13px"><button class="btn sm" data-act="copy" data-url="' + esc(url) + '">Copy</button></div></div>';
   }
@@ -1212,13 +1262,15 @@
     var L = S.data.league;
     var h = '<div class="card flush"><div class="card-head"><h3 class="grow">Players</h3><span class="small muted">' + Engine.activePlayers(L).length + ' active</span></div>';
     if (!S.adminRoster) return h + '<div class="empty" style="margin:14px">Loading…</div></div>';
-    h += '<table class="mini-table"><thead><tr><th>Name</th><th>Email</th><th>List</th><th>Winner bet</th><th></th></tr></thead><tbody>';
+    h += '<div style="padding:12px 16px;border-bottom:1px solid var(--line)" class="row"><span class="small muted grow">Each player’s personal link signs them in with one tap on any device. Text it to them.</span><button class="btn sm primary" data-act="a_copyall">Copy all links</button></div>';
+    h += '<div style="overflow-x:auto"><table class="mini-table"><thead><tr><th>Name</th><th>Email</th><th>List</th><th>Winner bet</th><th>Link</th><th></th></tr></thead><tbody>';
     h += S.adminRoster.map(function (p) {
       return '<tr style="' + (p.removed ? 'opacity:.4' : '') + '"><td class="nowrap"><input type="color" value="' + esc(p.color) + '" data-act="a_color" data-id="' + p.id + '" style="width:26px;height:26px;border:0;background:none;vertical-align:middle"> ' + esc(p.name) + '</td>' +
         '<td class="small">' + esc(p.email) + '</td><td>' + p.queue.length + '</td><td>' + (p.winnerPick ? esc(CASTBY[p.winnerPick].shortName) : '<span class="dim">—</span>') + '</td>' +
+        '<td>' + (p.token ? '<button class="btn sm" data-act="copy" data-url="' + esc(personalLink(p.token)) + '">Copy</button>' : '') + '</td>' +
         '<td>' + (L.draft.status === 'open' ? '<button class="btn sm ' + (p.removed ? '' : 'danger') + '" data-act="a_remove" data-id="' + p.id + '" data-v="' + (p.removed ? '0' : '1') + '">' + (p.removed ? 'Restore' : 'Remove') + '</button>' : '') + '</td></tr>';
     }).join('');
-    h += '</tbody></table></div>';
+    h += '</tbody></table></div></div>';
     h += '<div class="card stack" style="margin-top:16px"><h3>Add a player</h3><div class="row"><input class="input grow" id="aNewName" placeholder="Name"><input class="input grow" id="aNewEmail" placeholder="Email" type="email"></div><button class="btn" data-act="a_add">Add</button><p class="tiny dim" style="margin:0">Works before and after the draft starts (late joiners won’t have picks unless you enter them).</p></div>';
     return h;
   }
@@ -1307,7 +1359,7 @@
     var ss = $('#saveState'); if (ss) ss.textContent = 'Saving…';
     clearTimeout(saveQueueTimer);
     saveQueueTimer = setTimeout(function () {
-      apiPost({ action: 'prefs', email: S.me.email, queue: S.me.queue }).then(function (res) {
+      apiPost(Object.assign({ action: 'prefs', queue: S.me.queue }, ident())).then(function (res) {
         S.me.queue = res.me.queue; store.set('me', S.me);
         var ss2 = $('#saveState'); if (ss2) ss2.textContent = '✓ Saved';
       }).catch(function (e) {
@@ -1368,7 +1420,9 @@
       }
       case 'me':
         openSheet('<div class="row"><span class="dot" style="width:40px;height:40px;background:' + esc(S.me.color) + '"></span><div><h3 style="margin:0">' + esc(S.me.name) + '</h3><div class="small muted">' + esc(S.me.email) + '</div></div></div>' +
-          '<div class="stack" style="margin-top:16px">' + soundCard() + (S.isAdmin ? '<a class="btn block" href="#admin" data-act="close">Commissioner tools</a>' : '') + '<button class="btn block" data-act="signout">Sign out</button></div>');
+          '<div class="stack" style="margin-top:16px">' +
+          (S.me.token ? '<div class="card"><h3>Your personal link</h3><p class="small muted" style="margin:0 0 8px">Opens the site signed in as you on any phone or laptop. Don’t share it.</p><button class="btn block" data-act="copy" data-url="' + esc(personalLink(S.me.token)) + '">Copy my link</button></div>' : '') +
+          soundCard() + (S.isAdmin ? '<a class="btn block" href="#admin" data-act="close">Commissioner tools</a>' : '') + '<button class="btn block" data-act="signout">Sign out</button></div>');
         return;
       case 'signout': S.me = null; store.del('me'); closeSheet(); render(); return;
       case 'join': {
@@ -1391,7 +1445,7 @@
           return;
         }
         var pickId = S.me.winnerPick === id ? null : id;
-        apiPost({ action: 'prefs', email: S.me.email, winnerPick: pickId }).then(function (res) {
+        apiPost(Object.assign({ action: 'prefs', winnerPick: pickId }, ident())).then(function (res) {
           S.me.winnerPick = res.me.winnerPick; store.set('me', S.me); closeSheet(); render();
           toast(pickId ? 'Winner bet: ' + CASTBY[pickId].shortName : 'Winner bet cleared');
         }).catch(function (err) { toast(errMsg(err), true); });
@@ -1419,7 +1473,7 @@
       case 'pick': {
         t.disabled = true; t.innerHTML = 'Drafting…';
         var kind = t.dataset.kind;
-        apiPost({ action: 'pick', email: S.me.email, castawayId: id, kind: kind, n: Number(t.dataset.n) }).then(function (res) {
+        apiPost(Object.assign({ action: 'pick', castawayId: id, kind: kind, n: Number(t.dataset.n) }, ident())).then(function (res) {
           closeSheet();
           acceptLeague(res.league);
         }).catch(function (err) {
@@ -1464,13 +1518,12 @@
         admin('undo', { kind: kind }).then(function (res) {
           // An undone pick shouldn't replay its reveal later.
           S.seenPicks[kind] = draftOf(kind).picks.length;
-          adminDone('Undid ' + (res.undone && res.undone.castawayId ? CASTBY[res.undone.castawayId].shortName : 'last pick') + '. Draft paused.')();
+          adminDone('Undid ' + (res.undone && res.undone.castawayId ? CASTBY[res.undone.castawayId].shortName : 'last pick') + '. That player is back on the clock.')();
         }).catch(adminFail); return;
       case 'a_autopick': admin('autopick_now', { kind: kind }).then(adminDone('Auto-picked')).catch(adminFail); return;
-      case 'a_pickfor': {
-        var slot = Engine.currentSlot(L.draft);
-        admin('pick_for', { kind: 'main', castawayId: $('#aPickFor').value, n: slot.n }).then(adminDone('Pick entered')).catch(adminFail); return;
-      }
+      case 'a_pickfor':
+        admin('pick_for', { kind: 'main', castawayId: $('#aPickFor').value, n: Number(t.dataset.n), playerId: t.dataset.pid })
+          .then(adminDone('Pick entered')).catch(function (e) { adminFail(e); redraw('admin'); }); return;
       case 'a_clock': admin('set_clock', { kind: 'main', clockSec: Number($('#aClock2').value) }).then(adminDone('Clock updated')).catch(adminFail); return;
       case 'a_reset':
         admin('reset_draft', { confirm: $('#aReset').value.trim() }).then(function () { S.seenPicks = { main: null, merge: null }; adminDone('Draft reset')(); }).catch(adminFail); return;
@@ -1480,6 +1533,13 @@
         admin('start_merge', { order: order, startEp: Number($('#aMergeEp').value), clockSec: Number($('#aMergeClock').value) }).then(adminDone('Merge draft started')).catch(adminFail); return;
       }
       case 'a_color': return;
+      case 'a_copyall': {
+        var lines = (S.adminRoster || []).filter(function (p) { return !p.removed && p.token; })
+          .map(function (p) { return p.name + ': ' + personalLink(p.token); });
+        var text = 'Survivor 51 draft links — tap yours and it signs you in:\n' + lines.join('\n');
+        if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { toast('Copied ' + lines.length + ' links'); });
+        return;
+      }
       case 'a_remove': admin('update_player', { id: t.dataset.id, removed: t.dataset.v === '1' }).then(function () { S.adminRoster = null; adminDone('Updated')(); }).catch(adminFail); return;
       case 'a_add': admin('add_player', { name: $('#aNewName').value, email: $('#aNewEmail').value }).then(function () { S.adminRoster = null; adminDone('Added')(); }).catch(adminFail); return;
       case 'a_ep': S.adminEp = Number(t.dataset.ep); redraw('admin'); return;
@@ -1576,8 +1636,13 @@
       });
     }
     // Refresh my private prefs (queue / winner bet) from the server.
-    if (S.me && S.me.email) {
-      apiPost({ action: 'login', email: S.me.email }).then(function (res) { S.me = res.me; store.set('me', S.me); render(); })
+    if (LINK_TOKEN && !S.tv) {
+      apiPost({ action: 'login', token: LINK_TOKEN }).then(function (res) {
+        S.me = res.me; store.set('me', S.me); render();
+        toast('Signed in as ' + res.me.name + ' 🔥');
+      }).catch(function () { toast('That personal link didn’t work. Sign in with your email instead.', true); });
+    } else if (S.me && (S.me.email || S.me.token)) {
+      apiPost(Object.assign({ action: 'login' }, ident())).then(function (res) { S.me = res.me; store.set('me', S.me); render(); })
         .catch(function (e) { if (e.code === 'not_found') { S.me = null; store.del('me'); render(); } });
     }
   }
