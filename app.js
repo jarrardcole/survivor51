@@ -505,8 +505,12 @@
     if (S.route === 'admin' || S.route === 'join') {
       // Forms: only draw once per visit so polling never wipes what someone is typing.
       var pg = $('#page-' + S.route);
-      if (pg.dataset.drawn === '1') return;
+      var typing = document.activeElement && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName) && pg.contains(document.activeElement);
+      // The admin Draft tab has no free-text fields worth protecting, so keep it live during the draft.
+      var liveAdmin = S.route === 'admin' && S.adminTab === 'draft' && pg.dataset.version !== String(S.version) && !typing;
+      if (pg.dataset.drawn === '1' && !liveAdmin) return;
       pg.dataset.drawn = '1';
+      pg.dataset.version = String(S.version);
     }
     fn();
   }
