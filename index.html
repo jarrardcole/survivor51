@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Survivor 51 Fantasy</title>
+<meta name="description" content="Our Survivor 51 fantasy league: live draft, standings, and the weekly Commissioner's Notes.">
+<meta name="theme-color" content="#0D0A08">
+<meta property="og:title" content="Survivor 51 Fantasy League">
+<meta property="og:description" content="Live draft, standings, and the weekly Commissioner's Notes.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="#home" aria-label="Survivor 51 Fantasy home">
+    <span class="brand-flame" aria-hidden="true"></span>
+    <span class="brand-text"><b>SURVIVOR 51</b><i>Fantasy League</i></span>
+  </a>
+  <nav class="nav" id="nav">
+    <a href="#home" data-route="home">Home</a>
+    <a href="#draft" data-route="draft">Draft</a>
+    <a href="#standings" data-route="standings">Standings</a>
+    <a href="#cast" data-route="cast">Cast</a>
+    <a href="#rules" data-route="rules">Rules</a>
+    <a href="#admin" data-route="admin" class="admin-only">Admin</a>
+  </nav>
+  <div class="me-chip" id="meChip"></div>
+</header>
+
+<div class="banner" id="banner" hidden></div>
+
+<main id="app">
+  <section class="page" id="page-home"></section>
+  <section class="page" id="page-draft"></section>
+  <section class="page" id="page-standings"></section>
+  <section class="page" id="page-cast"></section>
+  <section class="page" id="page-rules"></section>
+  <section class="page" id="page-join"></section>
+  <section class="page" id="page-admin"></section>
+</main>
+
+<nav class="tabbar" id="tabbar" aria-label="Sections">
+  <a href="#home" data-route="home"><span class="ti">🏝️</span>Home</a>
+  <a href="#draft" data-route="draft"><span class="ti">🔥</span>Draft</a>
+  <a href="#standings" data-route="standings"><span class="ti">🏆</span>Standings</a>
+  <a href="#cast" data-route="cast"><span class="ti">🧑‍🤝‍🧑</span>Cast</a>
+  <a href="#rules" data-route="rules"><span class="ti">📜</span>Rules</a>
+  <a href="#admin" data-route="admin" class="admin-only"><span class="ti">🛠️</span>Admin</a>
+</nav>
+
+<!-- Pick announcement -->
+<div class="reveal" id="reveal" hidden></div>
+<!-- Bottom sheet (pick confirm, castaway details) -->
+<div class="sheet-backdrop" id="sheetBackdrop" hidden></div>
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="config.js"></script>
+<script src="cast.js"></script>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
