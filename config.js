@@ -2,7 +2,7 @@
 // Localhost uses the mock server (dev/mock-server.js); everything else uses the Apps Script web app.
 var LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
 var CONFIG = {
-  API_URL: LOCAL ? '/api' : 'https://script.google.com/macros/s/APPS_SCRIPT_DEPLOYMENT_ID/exec',
+  API_URL: LOCAL ? '/api' : 'https://script.google.com/macros/s/AKfycbzPTwbKWQstw-R9rxot9GI0RvYyuFPGwKm7CcKREoEFZwalVVF_2a0zthfYEMCl9fk/exec',
   SITE_URL: 'https://jarrardcole.github.io/survivor51/',
   SEASON: 51,
   // Wednesday nights, 8pm ET. Used for "next episode" countdowns.
