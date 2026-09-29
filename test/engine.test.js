@@ -137,7 +137,7 @@ function api() {
       storeLoadAll: () => JSON.parse(JSON.stringify(store)),
       storeSet: (k, v) => { store[k] = JSON.parse(JSON.stringify(v)); },
       backup: () => {}, cachePut: (b, m, ns) => { cache[ns || ''] = { body: b, meta: m }; }, cacheGet: ns => cache[ns || ''] || null,
-      cacheClear: ns => { delete cache[ns || '']; }, withLock: fn => fn(), adminKey: () => 'k',
+      cacheClear: ns => { delete cache[ns || '']; }, withLock: (l, fn) => fn(), tryWithLock: (m, l, fn) => fn(), adminKey: () => 'k',
       json: o => o, raw: s => JSON.parse(s)
     }
   };

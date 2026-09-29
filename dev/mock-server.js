@@ -30,7 +30,8 @@ const Platform = {
   cachePut: (body, meta, ns) => { cache[ns || ''] = { body, meta }; },
   cacheGet: (ns) => cache[ns || ''] || null,
   cacheClear: (ns) => { delete cache[ns || '']; },
-  withLock: (fn) => fn(),            // node is single-threaded: requests never interleave
+  withLock: (label, fn) => fn(),     // node is single-threaded: requests never interleave
+  tryWithLock: (ms, label, fn) => fn(),
   adminKey: () => 'dev',
   json: (obj) => ({ body: JSON.stringify(obj) }),
   raw: (str) => ({ body: str })

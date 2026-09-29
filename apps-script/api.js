@@ -59,12 +59,12 @@ function doPost(e) {
   try {
     var out;
     switch (body.action) {
-      case 'join':  out = Platform.withLock(function () { return actJoin(body); }); break;
+      case 'join':  out = Platform.withLock('join', function () { return actJoin(body); }); break;
       case 'login': out = actLogin(body); break;
-      case 'prefs': out = Platform.withLock(function () { return actPrefs(body); }); break;
-      case 'pick':  out = Platform.withLock(function () { return actPick(body); }); break;
-      case 'admin': out = Platform.withLock(function () { return actAdmin(body); }); break;
-      case 'practice': out = Platform.withLock(function () { return actPractice(body); }); break;
+      case 'prefs': out = Platform.withLock('prefs', function () { return actPrefs(body); }); break;
+      case 'pick':  out = Platform.withLock('pick', function () { return actPick(body); }); break;
+      case 'admin': out = Platform.withLock('admin:' + body.op, function () { return actAdmin(body); }); break;
+      case 'practice': out = Platform.withLock('practice:' + body.op, function () { return actPractice(body); }); break;
       default: Engine.fail('unknown_action');
     }
     out.ok = true;
@@ -104,22 +104,19 @@ function queuesOf(all) {
 }
 
 // ---------- Public read (cached) ----------
+function isDue(meta, now) {
+  return !!((meta.main && now >= meta.main) || (meta.merge && now >= meta.merge) || (meta.start && now >= meta.start));
+}
+
+// Reads never wait on the lock. If a pick clock has expired, one request briefly tries to
+// take the lock and apply the auto-pick; everyone else gets a fresh read right away. So even
+// if a write stalls inside Google, the board stays visible for the whole room.
 function publicPayload() {
   var cached = DB.cacheGet();
-  if (cached) {
-    var meta = cached.meta;
-    var now = Date.now();
-    var due = (meta.main && now >= meta.main) || (meta.merge && now >= meta.merge) || (meta.start && now >= meta.start);
-    if (!due) return withTime(cached.body);
-  }
-  // Cache miss or a pick clock has expired: rebuild from the sheet (under lock if we may write).
-  return withTime(Platform.withLock(function () {
-    // Another request may have rebuilt the cache while we waited for the lock.
+  if (cached && !isDue(cached.meta, Date.now())) return withTime(cached.body);
+  var body = Platform.tryWithLock(2500, 'tick', function () {
     var again = DB.cacheGet();
-    if (again) {
-      var m2 = again.meta, t2 = Date.now();
-      if (!((m2.main && t2 >= m2.main) || (m2.merge && t2 >= m2.merge) || (m2.start && t2 >= m2.start))) return again.body;
-    }
+    if (again && !isDue(again.meta, Date.now())) return again.body;
     var all = loadAll();
     var league = all[LEAGUE_KEY];
     var now = Date.now();
@@ -136,14 +133,23 @@ function publicPayload() {
       if (r) { changed = true; onDraftProgress(all, kind); }
     });
     if (changed) saveLeague(all, 'autopick');
-    var body = buildPublicBody(all);
-    DB.cachePut(body, {
-      main: league.draft.status === 'live' && league.draft.deadline ? league.draft.deadline + graceFor(league, 'main') : null,
-      merge: league.merge.status === 'live' && league.merge.deadline ? league.merge.deadline + graceFor(league, 'merge') : null,
-      start: league.draft.status === 'open' && league.autoStart && league.draftAt ? Date.parse(league.draftAt) : null
-    });
-    return body;
-  }));
+    var built = buildPublicBody(all);
+    DB.cachePut(built, cacheMeta(league));
+    return built;
+  });
+  if (body != null) return withTime(body);
+  // Someone else holds the lock: serve the latest cached or stored state without writing.
+  var again = DB.cacheGet();
+  if (again) return withTime(again.body);
+  return withTime(buildPublicBody(loadAll()));
+}
+
+function cacheMeta(league) {
+  return {
+    main: league.draft.status === 'live' && league.draft.deadline ? league.draft.deadline + graceFor(league, 'main') : null,
+    merge: league.merge.status === 'live' && league.merge.deadline ? league.merge.deadline + graceFor(league, 'merge') : null,
+    start: league.draft.status === 'open' && league.autoStart && league.draftAt ? Date.parse(league.draftAt) : null
+  };
 }
 
 // As many rounds as the board allows, up to the configured number.

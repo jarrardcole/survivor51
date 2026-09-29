@@ -7,13 +7,16 @@ const API = process.env.S51_API, KEY = process.env.S51_ADMIN;
 const N = Number(process.argv[2] || 9), CLOCK = Number(process.argv[3] || 15);
 if (!API || !KEY) { console.error('need S51_API and S51_ADMIN'); process.exit(1); }
 
-const post = b => fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(b) }).then(r => r.json());
-const get = () => fetch(API + '?action=state&t=' + Date.now()).then(r => r.json());
+// Runs in the practice sandbox by default (same code and Google services, separate data). REAL=1 targets the real league.
+const NS = process.env.REAL ? undefined : 'practice';
+const post = b => fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(Object.assign({ ns: NS }, b)) }).then(r => r.json());
+const get = () => fetch(API + '?action=state' + (NS ? '&ns=' + NS : '') + '&t=' + Date.now()).then(r => r.json());
 const admin = (op, x) => post(Object.assign({ action: 'admin', key: KEY, op }, x || {}));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const t0 = Date.now(); const log = (...a) => console.log(((Date.now() - t0) / 1000).toFixed(1).padStart(6) + 's', ...a);
 
 (async () => {
+  if (NS) await post({ action: 'practice', op: 'reset' });
   const pre = (await get()).data.league;
   if (pre.draft.status !== 'open') { console.error('draft is not open; refusing to rehearse over a real draft'); process.exit(1); }
   const players = [];
@@ -69,7 +72,7 @@ const t0 = Date.now(); const log = (...a) => console.log(((Date.now() - t0) / 10
   const dupes = players.filter(p => { const m = L.draft.picks.filter(x => x.playerId === p.id).map(x => x.castawayId); return new Set(m).size !== m.length; });
   log('complete:', L.draft.picks.length, 'picks', JSON.stringify(stats), 'overCap', overCap.length, 'dupes', dupes.length);
   await admin('reset_draft', { confirm: 'RESET' });
-  const purge = await admin('purge_removed', { emailsLike: 'rehearsal' });
+  const purge = await admin('purge', { match: 'rehearsal' });
   log('reset + purge', purge.ok ? 'ok' : purge.error);
   process.exit(stats.errors.length || overCap.length || dupes.length ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

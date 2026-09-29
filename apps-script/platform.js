@@ -52,12 +52,19 @@ var Platform = (function () {
     sh.getRange(row, 1, 1, 3).setValues([[key, json, new Date()]]);
   }
 
+  // Backups are written after the lock is released, so a slow Sheets append never holds up a pick.
+  var _pendingBackups = [];
   function backup(reason, league) {
+    var json = JSON.stringify(league);
+    if (json.length < 49000) _pendingBackups.push([new Date(), reason, json]);
+  }
+  function flushBackups() {
+    if (!_pendingBackups.length) return;
+    var rows = _pendingBackups; _pendingBackups = [];
     try {
       var sh = ss().getSheetByName(BACKUPS) || ss().insertSheet(BACKUPS);
-      var json = JSON.stringify(league);
-      if (json.length < 49000) sh.appendRow([new Date(), reason, json]);
-    } catch (e) { /* backups must never block a write */ }
+      sh.getRange(sh.getLastRow() + 1, 1, rows.length, 3).setValues(rows);
+    } catch (e) { /* backups must never break a request */ }
   }
 
   function cachePut(body, meta, ns) {
@@ -97,10 +104,26 @@ var Platform = (function () {
     CacheService.getScriptCache().remove((ns || '') + CACHE_KEY + ':meta');
   }
 
-  function withLock(fn) {
+  // Every lock is timed; anything slow shows up in the Apps Script "Executions" log.
+  function withLock(label, fn) {
+    var r = tryWithLock(8000, label, fn);
+    if (r === null) { var e = new Error('server_busy'); e.code = 'server_busy'; throw e; }
+    return r;
+  }
+
+  // Returns null (instead of waiting long) if another request holds the lock.
+  function tryWithLock(waitMs, label, fn) {
     var lock = LockService.getScriptLock();
-    if (!lock.tryLock(10000)) { var e = new Error('server_busy'); e.code = 'server_busy'; throw e; }
-    try { _rows = null; return fn(); } finally { lock.releaseLock(); }
+    var t0 = Date.now();
+    if (!lock.tryLock(waitMs)) { console.warn('lock busy: ' + label + ' waited ' + (Date.now() - t0) + 'ms'); return null; }
+    var t1 = Date.now();
+    try { _rows = null; return fn(); }
+    finally {
+      lock.releaseLock();
+      var held = Date.now() - t1;
+      if (held > 2000 || t1 - t0 > 2000) console.warn('lock slow: ' + label + ' waited ' + (t1 - t0) + 'ms, held ' + held + 'ms');
+      flushBackups();
+    }
   }
 
   function adminKey() {
@@ -118,7 +141,7 @@ var Platform = (function () {
   return {
     storeLoadAll: storeLoadAll, storeSet: storeSet, backup: backup,
     cachePut: cachePut, cacheGet: cacheGet, cacheClear: cacheClear,
-    withLock: withLock, adminKey: adminKey, json: json, raw: raw
+    withLock: withLock, tryWithLock: tryWithLock, adminKey: adminKey, json: json, raw: raw
   };
 })();
 
@@ -130,7 +153,7 @@ function setup() {
     key = Utilities.getUuid().replace(/-/g, '').slice(0, 20);
     props.setProperty('ADMIN_KEY', key);
   }
-  Platform.withLock(function () {
+  Platform.withLock('setup', function () {
     var all = Platform.storeLoadAll();
     if (!all.league) Platform.storeSet('league', Engine.newLeague(51));
     if (!all['private']) Platform.storeSet('private', { byId: {} });
