@@ -223,11 +223,12 @@
   document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
 
   // ---------- routing ----------
-  var ROUTES = ['home', 'draft', 'standings', 'cast', 'rules', 'join', 'admin'];
+  var ROUTES = ['home', 'draft', 'standings', 'cast', 'rules', 'join', 'setup', 'admin'];
   function route() {
     var r = (location.hash || '#home').slice(1).split('/')[0] || 'home';
     if (ROUTES.indexOf(r) === -1) r = 'home';
     if (r === 'admin' && !S.adminKey) r = 'home';
+    S.setupStep = r === 'setup' ? ((location.hash.split('/')[1]) || null) : null;
     S.route = r;
     if (S.tv) S.route = 'draft';
     $$('.page').forEach(function (p) { p.classList.toggle('active', p.id === 'page-' + S.route); });
@@ -315,6 +316,8 @@
     } else {
       chip.innerHTML = '<button class="btn sm ghost" data-act="signin">Sign in</button>';
     }
+    var needsSetup = S.data && amIn() && S.data.league.draft.status === 'open' && !readiness().ready;
+    $$('[data-route="draft"]').forEach(function (a) { a.classList.toggle('nudge', !!needsSetup); });
     var lk = liveKind();
     $$('[data-route="draft"]').forEach(function (a) { a.classList.toggle('live', !!lk && S.data && S.data[lk === 'merge' ? 'league' : 'league'][lk === 'merge' ? 'merge' : 'draft'].status === 'live'); });
 
@@ -470,7 +473,7 @@
         '<div class="ph tribe-' + esc(c.tribe) + '" style="background-image:url(\'' + esc(photo(c.id)) + '\')"></div>' +
         '<div class="cn">' + esc(c.shortName) + '</div>' +
         '<div class="ctx">' + esc(c.tribe) + ' · ' + esc(c.occupation) + ' · ' + esc(ctx) + '</div>' +
-        (p.auto && p.auto !== 'commissioner' ? '<div class="auto chip warn">⏱ Auto-pick (' + (p.auto === 'queue' ? 'from their list' : 'league favorite') + ')</div>' : '') +
+        (p.auto && p.auto !== 'commissioner' ? '<div class="auto chip warn">⏱ Auto-pick (' + (p.auto === 'queue' ? 'from their backup plan' : 'league favorite') + ')</div>' : '') +
         (p.auto === 'commissioner' ? '<div class="auto chip">Entered by the commissioner</div>' : '') +
         '</div>';
       ms = backlog > 1 ? 2000 : S.tv ? 6500 : 4200;
@@ -544,7 +547,7 @@
       return;
     }
     if (S.dragging) return;
-    var fn = { home: renderHome, draft: renderDraft, standings: renderStandings, cast: renderCast, rules: renderRules, join: renderJoin, admin: renderAdmin }[S.route];
+    var fn = { home: renderHome, draft: renderDraft, standings: renderStandings, cast: renderCast, rules: renderRules, join: renderJoin, setup: renderSetup, admin: renderAdmin }[S.route];
     if (S.route === 'admin' || S.route === 'join') {
       // Forms: only draw once per visit so polling never wipes what someone is typing.
       var pg = $('#page-' + S.route);
@@ -581,7 +584,7 @@
         '<p>Twenty castaways are left after the premiere. We draft on Episode 2 night (Wed, Sep 30). Everyone picks from their own phone, so it works the same in the room or across the country.</p>' +
         (draftAt ? '<div class="countdown" data-countdown="' + draftAt + '"></div>' : '') +
         '<div class="row">' + (amIn()
-          ? '<a class="btn primary lg" href="#draft">Rank your board →</a>'
+          ? (readiness().ready ? '<a class="btn primary lg" href="#draft">✅ You’re draft-ready · review</a>' : '<a class="btn primary lg" href="#setup">Finish getting draft-ready →</a>')
           : '<a class="btn primary lg" href="#join">Join the league</a><button class="btn lg" data-act="signin">I already joined</button>') + '</div>';
     } else if (lk) {
       var d = draftOf(lk), slot = Engine.currentSlot(d);
@@ -613,7 +616,7 @@
     h += '<div class="split" style="margin-top:18px">';
     h += '<div>' + notesBlock(v) + '</div>';
     h += '<div class="stack">';
-    if (phase === 'open') h += lobbyCard(L);
+    if (phase === 'open') h += readinessCard(false) + lobbyCard(L);
     else {
       h += miniStandings(v);
       if (amIn()) h += myTeamCard(v);
@@ -678,13 +681,16 @@
 
   function lobbyCard(L) {
     var ps = Engine.activePlayers(L);
-    var h = '<div class="card"><div class="row" style="margin-bottom:12px"><h3 style="margin:0" class="grow">Who’s in <span class="muted">(' + ps.length + ')</span></h3>' +
+    var readyN = ps.filter(function (p) { return p.hasWinnerBet && p.queueSize >= listTarget(); }).length;
+    var h = '<div class="card"><div class="row" style="margin-bottom:12px"><h3 style="margin:0" class="grow">Who’s in <span class="muted">(' + ps.length + ' · ' + readyN + ' draft-ready)</span></h3>' +
       (amIn() ? '' : '<a class="btn primary sm" href="#join">Join</a>') + '</div>';
     if (!ps.length) h += '<div class="empty">Nobody yet. Be the first.</div>';
     h += '<div class="lobby" style="grid-template-columns:1fr">' + ps.map(function (p) {
       return '<div class="lobby-item"><span class="dot" style="width:28px;height:28px;background:' + esc(p.color) + '"></span><div class="grow"><div class="name">' + esc(p.name) + (isMe(p.id) ? ' <span class="chip warn">you</span>' : '') + '</div>' +
-        '<div class="checks"><span class="chip ' + (p.queueSize ? 'good' : '') + '">' + (p.queueSize ? '✓ Board ranked' : 'No board yet') + '</span>' +
-        '<span class="chip ' + (p.hasWinnerBet ? 'good' : '') + '">' + (p.hasWinnerBet ? '✓ Winner bet' : 'No winner bet') + '</span></div></div></div>';
+        '<div class="checks">' + (p.hasWinnerBet && p.queueSize >= listTarget()
+          ? '<span class="chip good">✓ Draft-ready</span>'
+          : '<span class="chip ' + (p.queueSize >= listTarget() ? 'good' : p.queueSize ? 'warn' : '') + '">' + (p.queueSize >= listTarget() ? '✓ Backup plan' : 'Backup plan ' + p.queueSize + '/' + listTarget()) + '</span>' +
+            '<span class="chip ' + (p.hasWinnerBet ? 'good' : '') + '">' + (p.hasWinnerBet ? '✓ Winner' : 'No winner yet') + '</span>') + '</div></div></div>';
     }).join('') + '</div>';
     var cap = Engine.activeCastawayIds(L, CAST).length * L.settings.maxPerCastaway;
     var rounds = L.settings.rounds;
@@ -723,12 +729,95 @@
     return h + '</div>';
   }
 
+  // ---------- DRAFT READINESS ----------
+  // "Ready" = winner picked + at least LIST_TARGET castaways ranked, so the auto-pick can
+  // draft a good team even if someone isn't there on the night.
+  function listTarget() { return Math.max(8, (S.data ? S.data.league.settings.rounds : 4) * 2); }
+  function readiness() {
+    var q = (S.me && S.me.queue) || [];
+    var target = listTarget();
+    var hasWinner = !!(S.me && S.me.winnerPick);
+    return { hasWinner: hasWinner, listed: q.length, target: target, listOk: q.length >= target, ready: hasWinner && q.length >= target };
+  }
+
+  function readinessCard(compact) {
+    if (!amIn() || !S.data || S.data.league.draft.status !== 'open') return '';
+    var r = readiness();
+    var pct = Math.round(((1 + (r.hasWinner ? 1 : 0) + Math.min(1, r.listed / r.target)) / 3) * 100);
+    if (r.ready && compact) {
+      return '<div class="card ready-card done"><div class="row"><span style="font-size:24px">✅</span><div class="grow"><b>You’re draft-ready.</b><div class="small muted">If you can’t be there, your backup plan drafts for you.</div></div><a class="btn sm" href="#draft">Edit backup plan</a></div></div>';
+    }
+    return '<div class="card ready-card' + (r.ready ? ' done' : '') + '"><div class="row" style="margin-bottom:10px"><h3 class="grow" style="margin:0">' + (r.ready ? '✅ You’re draft-ready' : 'Get draft-ready') + '</h3><span class="small muted">' + pct + '%</span></div>' +
+      '<div class="meter"><i style="width:' + pct + '%"></i></div>' +
+      '<div class="checklist">' +
+      '<div class="ck done"><span class="b">✓</span><span>Joined the league</span></div>' +
+      '<div class="ck' + (r.hasWinner ? ' done' : '') + '"><span class="b">' + (r.hasWinner ? '✓' : '2') + '</span><span class="grow">Pick the Winner ' + (r.hasWinner ? '<b>· ' + esc(CASTBY[S.me.winnerPick].shortName) + '</b>' : '<span class="dim">(+' + S.data.league.settings.winnerBetPoints + ' if right)</span>') + '</span>' + (r.hasWinner ? '' : '<a class="btn sm primary" href="#setup/winner">Pick</a>') + '</div>' +
+      '<div class="ck' + (r.listOk ? ' done' : '') + '"><span class="b">' + (r.listOk ? '✓' : '3') + '</span><span class="grow">Set your backup plan: top ' + r.target + ' <span class="dim">(' + Math.min(r.listed, r.target) + '/' + r.target + ')</span></span>' + (r.listOk ? '' : '<a class="btn sm primary" href="#setup/rank">Set it</a>') + '</div>' +
+      '</div>' +
+      (r.ready ? '' : '<p class="tiny dim" style="margin:10px 0 0">Your backup plan drafts for you if you’re not there when it’s your turn, or your signal drops. No backup plan means you get whoever the rest of the league likes.</p>') +
+      '</div>';
+  }
+
+  function stepDots(active) {
+    var steps = [['join', 'Join'], ['winner', 'Winner'], ['rank', 'Backup plan'], ['done', 'Ready']];
+    var idx = steps.map(function (x) { return x[0]; }).indexOf(active);
+    return '<div class="stepper">' + steps.map(function (x, i) {
+      return '<div class="st' + (i < idx ? ' done' : i === idx ? ' on' : '') + '"><span>' + (i < idx ? '✓' : i + 1) + '</span>' + x[1] + '</div>';
+    }).join('<i></i>') + '</div>';
+  }
+
+  // Guided setup after joining: #setup/winner → #setup/rank → #setup/done
+  function renderSetup() {
+    var el = $('#page-setup');
+    var L = S.data.league;
+    if (!amIn()) { el.innerHTML = '<div class="card center stack" style="max-width:520px;margin:0 auto"><h2>Join first</h2><a class="btn primary" href="#join">Join the league</a><button class="btn" data-act="signin">I already joined</button></div>'; return; }
+    if (L.draft.status !== 'open') { location.hash = '#draft'; return; }
+    var r = readiness();
+    var step = S.setupStep || (!r.hasWinner ? 'winner' : !r.listOk ? 'rank' : 'done');
+    var h = '<div style="max-width:760px;margin:0 auto">' + stepDots(step);
+    if (step === 'winner') {
+      h += '<div class="center" style="margin:6px 0 16px"><div class="eyebrow">Step 2 of 3</div><h1 class="display" style="font-size:40px;margin:4px 0">Who wins Survivor 51?</h1>' +
+        '<p class="muted" style="max-width:520px;margin:0 auto">Get it right for <b style="color:var(--text)">+' + L.settings.winnerBetPoints + ' points</b>. Nobody sees your pick until the draft ends, then it locks. Go with your gut.</p></div>' +
+        '<div class="board" style="grid-template-columns:repeat(auto-fill,minmax(96px,1fr))">' + winnerChoices(S.me.winnerPick) + '</div>' +
+        '<div class="setup-bar"><div class="grow small">' + (S.me.winnerPick ? 'Your pick: <b>' + esc(CASTBY[S.me.winnerPick].shortName) + '</b>' : '<span class="muted">Tap a castaway</span>') + '</div>' +
+        '<a class="btn ghost" href="#setup/rank">Skip</a><a class="btn primary' + (S.me.winnerPick ? '' : ' disabled') + '" href="#setup/rank">Next →</a></div>';
+    } else if (step === 'rank') {
+      var q = S.me.queue || [];
+      var need = Math.max(0, r.target - q.length);
+      h += '<div class="center" style="margin:6px 0 16px"><div class="eyebrow">Step 3 of 3</div><h1 class="display" style="font-size:40px;margin:4px 0">Your backup plan</h1>' +
+        '<p style="max-width:560px;margin:0 auto;font-size:16px">Tap your <b>top ' + r.target + '</b> castaways, in order.</p>' +
+        '<p class="muted" style="max-width:560px;margin:8px auto 0">This is your backup plan for the draft. If you’re not there when it’s your turn, or your clock runs out, you automatically get the highest one still available. On draft night you can still pick anyone you want.</p></div>' +
+        '<div class="board-tools"><span class="grow"></span>' + filterSeg() + '</div>' +
+        castBoard(view(), 'main', { prep: true }) +
+        '<div class="setup-bar"><div class="grow"><div class="small"><b>' + Math.min(q.length, r.target) + ' of ' + r.target + '</b> ranked' + (q.length > r.target ? ' <span class="dim">(+' + (q.length - r.target) + ' extra, even better)</span>' : '') + '</div>' +
+        '<div class="meter" style="margin-top:6px"><i style="width:' + Math.min(100, Math.round(q.length / r.target * 100)) + '%"></i></div>' +
+        (q.length ? '<div class="qchips">' + q.map(function (id, i) { return '<span class="chip">' + (i + 1) + '. ' + esc(CASTBY[id].shortName) + '</span>'; }).join('') + '</div>' : '') + '</div>' +
+        '<div style="flex:none;display:flex;flex-direction:column;align-items:center;gap:6px"><a class="btn primary' + (need ? ' disabled' : '') + '" href="#setup/done">' + (need ? need + ' more' : 'Done →') + '</a>' + (need ? '<a class="tiny dim center" href="#home">Finish later</a>' : '') + '</div></div>';
+    } else {
+      var draftAt = L.draftAt ? new Date(L.draftAt) : null;
+      h += '<div class="card center stack" style="margin-top:10px"><div style="font-size:52px">🔥</div><h1 class="display" style="font-size:42px;margin:0">' + (r.ready ? 'You’re draft-ready' : 'Almost there') + '</h1>' +
+        '<p class="muted" style="margin:0">' + (r.ready ? 'Even if you miss the draft, your backup plan has you covered.' : 'You can finish anytime before the draft. We’ll remind you on the homepage.') + '</p>' +
+        '<div class="checklist" style="text-align:left;max-width:420px;margin:6px auto">' +
+        '<div class="ck done"><span class="b">✓</span>Joined</div>' +
+        '<div class="ck' + (r.hasWinner ? ' done' : '') + '"><span class="b">' + (r.hasWinner ? '✓' : '!') + '</span>Winner: ' + (r.hasWinner ? '<b>' + esc(CASTBY[S.me.winnerPick].shortName) + '</b>' : '<a href="#setup/winner">pick one</a>') + '</div>' +
+        '<div class="ck' + (r.listOk ? ' done' : '') + '"><span class="b">' + (r.listOk ? '✓' : '!') + '</span>Backup plan: ' + r.listed + ' ranked' + (r.listOk ? '' : ' · <a href="#setup/rank">add ' + (r.target - r.listed) + ' more</a>') + '</div></div>' +
+        '<div class="card" style="text-align:left;background:rgba(0,0,0,.2)"><h3>On draft night' + (draftAt ? ' · ' + esc(draftAt.toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })) : ' · Wed, Sep 30') + '</h3><div class="steps small">' +
+        '<div><div>Open this site and keep it open. When it’s your turn, it chimes and the board lights up.</div></div>' +
+        '<div><div>You have ' + L.settings.clockSec + ' seconds per pick. Tap a castaway, then “Draft.”</div></div>' +
+        '<div><div>Can’t make it? Do nothing. Your backup plan drafts for you.</div></div></div></div>' +
+        (S.me.token ? '<div class="row" style="justify-content:center"><button class="btn" data-act="copy" data-url="' + esc(personalLink(S.me.token)) + '">Copy my personal link</button><span class="tiny dim">Opens the site signed in, on any device.</span></div>' : '') +
+        '<p class="tiny dim" style="margin:0">Tip: on iPhone, tap Share → “Add to Home Screen” so it opens like an app.</p>' +
+        '<div class="row" style="justify-content:center"><a class="btn primary lg" href="#home">Go to the league →</a></div></div>';
+    }
+    el.innerHTML = h + '</div>';
+  }
+
   // ---------- JOIN ----------
   function renderJoin() {
     var L = S.data.league;
     var h = '<div style="max-width:560px;margin:0 auto" class="stack">';
     if (amIn()) {
-      h += '<div class="card center"><div style="font-size:40px">🔥</div><h2>You’re in, ' + esc(S.me.name.split(' ')[0]) + '.</h2><p class="muted">Next: rank your board so the auto-pick has your back.</p><a class="btn primary lg" href="#draft">Rank your board →</a></div>';
+      h += '<div class="card center"><div style="font-size:40px">🔥</div><h2>You’re in, ' + esc(S.me.name.split(' ')[0]) + '.</h2><p class="muted">' + (readiness().ready ? 'You’re draft-ready.' : 'Two quick steps and you’re draft-ready.') + '</p><a class="btn primary lg" href="' + (readiness().ready ? '#draft' : '#setup') + '">' + (readiness().ready ? 'Review your board →' : 'Finish setup →') + '</a></div>';
     } else if (L.draft.status !== 'open' && PRACTICE) {
       h += '<div class="card center stack"><h2>A practice draft is running</h2><p class="muted">Reset the practice league to join, then start your own.</p><button class="btn primary" data-act="p_reset">Reset practice</button></div>';
     } else if (L.draft.status !== 'open') {
@@ -738,9 +827,8 @@
         '<p class="muted">Takes 20 seconds. Your email is how you sign in on draft night; it’s never shown to anyone.</p></div>' +
         '<div class="card stack"><label class="field"><span>Your name</span><input class="input" id="jName" autocomplete="name" autocapitalize="words" maxlength="40" placeholder="First and last"></label>' +
         '<label class="field"><span>Email</span><input class="input" id="jEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com"></label>' +
-        '<div><span class="small muted" style="font-weight:700">Pick the Winner <span class="dim">(optional now, +' + L.settings.winnerBetPoints + ' pts if right, locks when the draft ends)</span></span>' +
-        '<div class="board" id="jWinner" style="margin-top:8px;grid-template-columns:repeat(auto-fill,minmax(86px,1fr))">' + winnerChoices(null) + '</div></div>' +
-        '<div class="err" id="jErr"></div><button class="btn primary lg block" data-act="join">Join Season 51</button></div>' +
+        '<div class="err" id="jErr"></div><button class="btn primary lg block" data-act="join">Join Season 51 →</button>' +
+        '<p class="tiny dim center" style="margin:0">Next: two quick steps so you’re ready for draft night (about 2 minutes).</p></div>' +
         '<p class="center small muted">Already joined? <a href="#" data-act="signin">Sign in with your email</a></p>';
     }
     $('#page-join').innerHTML = h + '</div>';
@@ -775,22 +863,23 @@
     h += '<div class="card" style="margin-bottom:16px"><div class="steps">' +
       '<div><div><b>' + L.settings.rounds + ' rounds, snake order.</b> <span class="muted">Order is random and revealed when the draft starts. Each castaway can be picked by two players, then they’re off the board.</span></div></div>' +
       '<div><div><b>' + L.settings.clockSec + ' seconds per pick, from your own phone.</b> <span class="muted">When it’s your turn your phone buzzes and the board lights up.</span></div></div>' +
-      '<div><div><b>Rank your board below.</b> <span class="muted">If your clock runs out (or your signal drops), you automatically get the highest-ranked castaway still available on your list.</span></div></div>' +
+      '<div><div><b>Set your backup plan below.</b> <span class="muted">Rank your top ' + listTarget() + '. If you’re not there when it’s your turn (or your clock runs out), you automatically get the highest one still available.</span></div></div>' +
       '</div></div>';
     if (!amIn()) {
       return h + '<div class="card center stack"><h3>Join to rank your board</h3><div class="row" style="justify-content:center"><a class="btn primary" href="#join">Join the league</a><button class="btn" data-act="signin">Sign in</button></div></div>' + castBoard(v, 'main', { prep: true });
     }
     var q = S.me.queue || [];
+    h += readinessCard(true) + '<div style="height:14px"></div>';
     h += '<div class="split">';
-    h += '<div><div class="board-tools"><h3 class="grow" style="margin:0">Tap castaways to add them to your list</h3>' + filterSeg() + '</div>' + castBoard(v, 'main', { prep: true }) + '</div>';
+    h += '<div><div class="board-tools"><h3 class="grow" style="margin:0">Tap castaways to add them to your backup plan</h3>' + filterSeg() + '</div>' + castBoard(v, 'main', { prep: true }) + '</div>';
     h += '<div class="stack" style="position:sticky;top:calc(var(--topbar-h) + 12px)">';
-    h += '<div class="card"><div class="row" style="margin-bottom:10px"><h3 class="grow" style="margin:0">Your list <span class="muted">(' + q.length + ')</span></h3><span class="tiny dim" id="saveState"></span></div>' +
+    h += '<div class="card"><div class="row" style="margin-bottom:10px"><h3 class="grow" style="margin:0">Your backup plan <span class="muted">(' + q.length + ')</span></h3><span class="tiny dim" id="saveState"></span></div>' +
       (q.length ? '<div class="queue" id="queue">' + q.map(function (id, i) {
         var c = CASTBY[id];
         return '<div class="qi" draggable="true" data-id="' + id + '"><span class="grip" aria-hidden="true">⠿</span><span class="n">' + (i + 1) + '</span>' + ava(id, 'xs', v) + '<span class="nm">' + esc(c.shortName) + ' <span class="tribe-tag ' + c.tribe + '">' + c.tribe + '</span></span>' +
           '<span class="ctl"><button data-act="qup" data-id="' + id + '" aria-label="Move up">↑</button><button data-act="qdown" data-id="' + id + '" aria-label="Move down">↓</button><button data-act="qdel" data-id="' + id + '" aria-label="Remove">✕</button></span></div>';
-      }).join('') + '</div>' : '<div class="empty">Your list is empty. Tap castaways on the board to add them in order.</div>') +
-      '<p class="tiny dim" style="margin:10px 0 0">Nobody else sees your list. Rank at least 8 to be safe.</p></div>';
+      }).join('') + '</div>' : '<div class="empty">No backup plan yet. Tap castaways on the board to add them in order.</div>') +
+      '<p class="tiny dim" style="margin:10px 0 0">Nobody else sees your backup plan. Rank at least ' + listTarget() + ' to be safe' + (q.length < listTarget() ? ' — <b style="color:var(--flame)">' + (listTarget() - q.length) + ' to go</b>' : ' ✓') + '.</p></div>';
     h += '<div class="card"><h3>Pick the Winner <span class="muted small">+' + L.settings.winnerBetPoints + ' pts</span></h3>' +
       (S.me.winnerPick ? '<div class="row" style="margin-bottom:10px">' + ava(S.me.winnerPick, 'sm', v) + '<b class="grow">' + esc(CASTBY[S.me.winnerPick].shortName) + '</b><button class="btn sm" data-act="winnersheet">Change</button></div>'
         : '<button class="btn primary block" data-act="winnersheet" style="margin-bottom:8px">Choose your winner</button>') +
@@ -929,7 +1018,7 @@
     var choice = Engine.chooseAutoPick(L, CAST, kind, S.me.id, q, []);
     if (!choice) return '';
     var c = CASTBY[choice.castawayId];
-    return '<div class="small muted hide-sm" style="max-width:200px">If time runs out you get <b style="color:var(--text)">' + esc(c.shortName) + '</b>' + (choice.source === 'queue' ? ' (from your list)' : '') + '.</div>';
+    return '<div class="small muted hide-sm" style="max-width:200px">If time runs out you get <b style="color:var(--text)">' + esc(c.shortName) + '</b>' + (choice.source === 'queue' ? ' (your backup plan)' : '') + '.</div>';
   }
 
   function myDraftCard(v, kind) {
@@ -944,9 +1033,9 @@
       return '<div class="row" style="padding:5px 0">' + ava(c.id, 'sm', v) + '<b class="grow">' + esc(c.shortName) + '</b><span class="tiny dim">#' + (p.n + 1) + (p.auto ? ' · auto' : '') + '</span></div>';
     }).join('');
     var q = (S.me.queue || []).filter(function (id) { return !Engine.pickBlocker(L, CAST, kind, S.me.id, id); });
-    h += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"><div class="row"><span class="small muted grow">Your list (still available)</span><button class="btn sm ghost" data-act="queuesheet">Edit</button></div>' +
+    h += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"><div class="row"><span class="small muted grow">Backup plan (still available)</span><button class="btn sm ghost" data-act="queuesheet">Edit</button></div>' +
       (q.length ? '<div class="row" style="gap:5px;margin-top:6px">' + q.slice(0, 8).map(function (id, i) { return '<span class="chip">' + (i + 1) + '. ' + esc(CASTBY[id].shortName) + '</span>'; }).join('') + '</div>'
-        : '<div class="tiny dim" style="margin-top:4px">Empty. Auto-pick will use the league’s favorites.</div>') + '</div>';
+        : '<div class="tiny dim" style="margin-top:4px">Empty. If your clock runs out you’ll get the league’s favorite.</div>') + '</div>';
     return h + '</div>';
   }
 
@@ -1188,7 +1277,7 @@
         : '<button class="btn primary lg block" data-act="pick" data-id="' + id + '" data-kind="' + kind + '" data-n="' + slot.n + '">Draft ' + esc(c.shortName) + '</button>';
     } else if (amIn() && d.status !== 'complete' && s.status === 'active') {
       var inQ = (S.me.queue || []).indexOf(id) !== -1;
-      h += '<button class="btn block" data-act="qtoggle" data-id="' + id + '" data-close="1">' + (inQ ? 'Remove from my list' : 'Add to my list') + '</button>';
+      h += '<button class="btn block" data-act="qtoggle" data-id="' + id + '" data-close="1">' + (inQ ? 'Remove from my backup plan' : 'Add to my backup plan') + '</button>';
     }
     openSheet(h);
   }
@@ -1201,7 +1290,7 @@
     h += '<div class="card"><h3>The draft</h3><div class="steps small">' +
       '<div><div><b>Random snake order, ' + set.rounds + ' rounds.</b> 1→N, then N→1, and so on.</div></div>' +
       '<div><div><b>Each castaway can be drafted by two players.</b> After their second pick they’re off the board. You can’t take the same castaway twice.</div></div>' +
-      '<div><div><b>' + set.clockSec + '-second clock, from your own phone.</b> Run out of time and you get the top available castaway from your ranked list (or the league’s consensus favorite if your list is empty).</div></div>' +
+      '<div><div><b>' + set.clockSec + '-second clock, from your own phone.</b> Run out of time and your <b>backup plan</b> picks for you: the top castaway still available from your ranked top 8 (or the league’s favorite if you didn’t set one).</div></div>' +
       '<div><div><b>Pick the Winner:</b> choose who wins the season before the draft ends. Right = <b>+' + set.winnerBetPoints + '</b>.</div></div>' +
       '<div><div><b>Merge draft:</b> when about nine castaways are left, everyone adds one more castaway. Last place picks first. Merge picks score from that episode on.</div></div>' +
       '</div></div>';
@@ -1398,6 +1487,7 @@
       apiPost(Object.assign({ action: 'prefs', queue: S.me.queue }, ident())).then(function (res) {
         S.me.queue = res.me.queue; store.set('me', S.me);
         var ss2 = $('#saveState'); if (ss2) ss2.textContent = '✓ Saved';
+        poll();   // so the lobby's draft-ready count updates right away
       }).catch(function (e) {
         var ss3 = $('#saveState'); if (ss3) ss3.textContent = '⚠️ Not saved';
         toast(errMsg(e), true);
@@ -1430,13 +1520,15 @@
 
   function queueSheet() {
     var q = S.me.queue || [];
-    openSheet('<h2 class="display" style="font-size:30px">Your list</h2><p class="muted small">Auto-pick takes the highest one still available.</p><div class="queue">' + q.map(function (id, i) {
+    openSheet('<h2 class="display" style="font-size:30px">Backup plan</h2><p class="muted small">If your clock runs out, you get the highest one still available.</p><div class="queue">' + q.map(function (id, i) {
       var c = CASTBY[id];
       return '<div class="qi"><span class="n">' + (i + 1) + '</span>' + ava(id, 'xs') + '<span class="nm">' + esc(c.shortName) + '</span><span class="ctl"><button data-act="qup" data-id="' + id + '" data-sheet="1">↑</button><button data-act="qdown" data-id="' + id + '" data-sheet="1">↓</button><button data-act="qdel" data-id="' + id + '" data-sheet="1">✕</button></span></div>';
     }).join('') + '</div>' + (q.length ? '' : '<div class="empty">Empty</div>') + '<p class="tiny dim">To add castaways, tap them on the board.</p>');
   }
 
   document.addEventListener('click', function (e) {
+    var dis = e.target.closest('a.disabled');
+    if (dis) { e.preventDefault(); return; }
     var t = e.target.closest('[data-act]');
     if (!t) return;
     var act = t.dataset.act;
@@ -1463,12 +1555,11 @@
       case 'signout': S.me = null; store.del('me'); closeSheet(); render(); return;
       case 'join': {
         var name = $('#jName').value, email = $('#jEmail').value;
-        var sel = $('#jWinner .pickable');
         t.disabled = true; t.textContent = 'Joining…';
-        apiPost({ action: 'join', name: name, email: email, winnerPick: sel ? sel.dataset.id : null }).then(function (res) {
+        apiPost({ action: 'join', name: name, email: email }).then(function (res) {
           signedIn(res.me);
           toast(res.existing ? 'You were already in. Signed you in.' : 'You’re in! 🔥');
-          location.hash = '#draft';
+          location.hash = readiness().ready ? '#home' : '#setup';
           poll();
         }).catch(function (err) { $('#jErr').textContent = errMsg(err); t.disabled = false; t.textContent = 'Join Season 51'; });
         return;
@@ -1480,7 +1571,7 @@
           if (!was) { t.classList.add('pickable'); t.style.boxShadow = '0 0 0 2px var(--flame)'; t.insertAdjacentHTML('beforeend', '<span class="qrank">🏆</span>'); }
           return;
         }
-        var pickId = S.me.winnerPick === id ? null : id;
+        var pickId = S.me.winnerPick === id && S.route !== 'setup' ? null : id;
         apiPost(Object.assign({ action: 'prefs', winnerPick: pickId }, ident())).then(function (res) {
           S.me.winnerPick = res.me.winnerPick; store.set('me', S.me); closeSheet(); render();
           toast(pickId ? 'Winner bet: ' + CASTBY[pickId].shortName : 'Winner bet cleared');

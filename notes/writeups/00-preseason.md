@@ -8,7 +8,7 @@ Season 50 is in the books. **James Baumer** won the league with 151 points, afte
 ## What’s new this season
 
 - **Draft from your own phone.** No more waiting for the commissioner to approve a pick. When it’s your turn, your phone buzzes, the board lights up, and you tap a castaway. It works the same whether you’re on the couch or across the country.
-- **A 90-second clock.** If time runs out, you automatically get the highest-ranked castaway still available on your list. So rank your board before Wednesday.
+- **A 90-second clock.** If time runs out, your **backup plan** picks for you: the highest-ranked castaway still available from your top 8. Set it before Wednesday, even if you plan to be there.
 - **Pick the Winner.** Choose who wins the season. Get it right for **+10 pts**. Your pick stays hidden until the draft ends, then it locks.
 - **Spoiler shield.** If you haven’t watched yet, this site hides the newest episode’s results until you tap “I’ve watched it.”
 
@@ -17,8 +17,8 @@ Scoring is exactly the same as Season 50. **Episode 2 doesn’t count**, because
 ## Draft night checklist
 
 1. Join the league (takes 20 seconds).
-2. Rank at least 8 castaways on the Draft page.
-3. Make your winner pick.
+2. Make your winner pick.
+3. Set your backup plan: rank your top 8.
 4. On Wednesday, open the Draft page and keep it open. Turn on the chime if you want a sound.
 
 ## Scouting report after Episode 1
