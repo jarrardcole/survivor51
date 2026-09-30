@@ -977,6 +977,7 @@
       h += (d.status === 'live' ? '<button class="btn sm" data-act="h_pause">❚❚ Pause</button>' : '<button class="btn sm primary" data-act="h_resume">▶ Resume</button>') +
         '<button class="btn sm" data-act="h_undo">↶ Undo</button>' +
         '<button class="btn sm" data-act="h_backup">⏭ Use their backup plan</button>' +
+        '<button class="btn sm" data-act="h_random">🎲 Random pick</button>' +
         '<span class="hb-tip">Click a castaway to pick for whoever is up.</span>';
     } else {
       h += '<span class="hb-tip">Draft complete.</span>';
@@ -1576,7 +1577,7 @@
       var slot = Engine.currentSlot(d);
       h += '<div class="row"><div class="grow"><div class="small muted">On the clock</div><b style="font-size:20px;color:' + esc(playerColor(L, slot.playerId)) + '">' + esc(playerName(L, slot.playerId)) + '</b> <span class="muted">#' + (slot.n + 1) + '</span></div><div class="display" style="font-size:34px" data-clock="main"></div></div>' +
         '<div class="row">' + (d.status === 'live' ? '<button class="btn" data-act="a_pause">❚❚ Pause</button>' : '<button class="btn primary" data-act="a_resume">▶ Resume</button>') +
-        '<button class="btn" data-act="a_undo">↶ Undo last pick</button><button class="btn" data-act="a_autopick">⏭ Pick from their backup plan now</button></div>' +
+        '<button class="btn" data-act="a_undo">↶ Undo last pick</button><button class="btn" data-act="a_autopick">⏭ Pick from their backup plan now</button><button class="btn" data-act="h_random">🎲 Random pick</button></div>' +
         '<div class="row"><select class="input grow" id="aPickFor">' + CAST.filter(function (c) { return !Engine.pickBlocker(L, CAST, 'main', slot.playerId, c.id); }).map(function (c) { return '<option value="' + c.id + '">' + esc(c.shortName) + '</option>'; }).join('') + '</select>' +
         '<button class="btn" data-act="a_pickfor" data-n="' + slot.n + '" data-pid="' + slot.playerId + '">Pick for ' + esc(playerName(L, slot.playerId).split(' ')[0]) + '</button></div>' +
         '<div class="row"><label class="field grow"><span>Change clock (sec)</span><input class="input" id="aClock2" type="number" value="' + d.clockSec + '"></label><button class="btn" data-act="a_clock" style="align-self:flex-end">Set</button></div>' +
@@ -1902,6 +1903,22 @@
         var sb = Engine.currentSlot(draftOf(kb));
         hostConfirm('Use ' + esc(playerName(S.data.league, sb.playerId).split(' ')[0]) + '’s backup plan?', 'Picks the top castaway still available on their list, right now.', 'Pick now', function () {
           admin('autopick_now', { kind: kb }).catch(function (e) { toast(errMsg(e), true); });
+        });
+        return;
+      }
+      case 'h_random': {
+        var kr = liveKind() || 'main';
+        var dr = draftOf(kr), sr = Engine.currentSlot(dr);
+        if (!sr) return;
+        var who = playerName(S.data.league, sr.playerId);
+        hostConfirm('Random pick for ' + esc(who.split(' ')[0]) + '?', 'Picks a random castaway that ' + esc(who.split(' ')[0]) + ' can still take.', '🎲 Pick', function () {
+          var Lr = S.data.league, dn = draftOf(kr), cur = Engine.currentSlot(dn);
+          if (!cur || cur.n !== sr.n) { toast('That pick was already made.'); return; }
+          var legal = Engine.legalPicks(Lr, CAST, kr, cur.playerId);
+          if (!legal.length) { toast('Nobody left they can take.', true); return; }
+          var cid = legal[Math.floor(Math.random() * legal.length)];
+          admin('pick_for', { kind: kr, castawayId: cid, n: cur.n, playerId: cur.playerId })
+            .catch(function (e) { toast(e.code === 'stale_pick' ? 'They already picked. No change needed.' : errMsg(e), e.code !== 'stale_pick'); poll(); });
         });
         return;
       }
