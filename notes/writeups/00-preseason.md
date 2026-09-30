@@ -12,7 +12,7 @@ Season 50 is in the books. **James Baumer** won the league with 151 points, afte
 - **Pick the Winner.** Choose who wins the season. Get it right for **+10 pts**. Nobody sees it until the draft ends. You can change it until then.
 - **Spoiler shield.** If you haven’t watched yet, this site hides the newest episode’s results until you tap “I’ve watched it.”
 
-Scoring is exactly the same as Season 50. **Episode 2 doesn’t count**, because we draft that night. Points start with Episode 3.
+Scoring is exactly the same as Season 50. We draft before Episode 2 airs, so **points start with Episode 2**. Episode 1 doesn’t count.
 
 ## Draft night checklist
 

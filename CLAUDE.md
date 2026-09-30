@@ -11,7 +11,7 @@ Jarrard is remote on draft night, so the draft is fully self-serve: every player
 
 ## Decisions (Sep 28, 2026)
 - Same scoring as Season 50 (`engine.js` → `SCORING`). "Survives" = attended Tribal and wasn't voted out.
-- **Episode 2 does not count.** `scoringStartEp = 3`. The draft happens on Episode 2 night (Wed Sep 30).
+- **Episode 2 counts** (changed Sep 29): the draft happens before Episode 2 airs on Wed Sep 30, so `scoringStartEp = 2`. If the group ever drafts after an episode airs, set it back in Admin → Settings and mark that episode's boot as eliminated.
 - Snake draft, 4 rounds by default, each castaway can be picked by 2 players. The server refuses a draft
   bigger than the board (20 active castaways × 2 = 40 picks; 10 players × 4 fits, 11 players needs 3 rounds).
 - 90-second pick clock. When it expires, auto-pick takes the top available castaway from that player's

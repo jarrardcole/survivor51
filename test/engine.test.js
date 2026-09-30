@@ -98,8 +98,9 @@ test('a slot with no legal pick is skipped, not stuck', () => {
   assert.strictEqual(l.draft.picks.length, 40);
 });
 
-test('scoring: episode 2 does not count, merge pick scores from its start episode, winner bet pays', () => {
+test('scoring: episodes before scoringStartEp do not count, merge pick scores from its start episode, winner bet pays', () => {
   const l = leagueWith(2);
+  l.settings.scoringStartEp = 3;
   E.startDraft(l, CAST, { now: 0, order: ['p0', 'p1'], rounds: 1 });
   E.applyPick(l, CAST, 'main', 'p0', 'rob', { now: 1 });
   E.applyPick(l, CAST, 'main', 'p1', 'ori', { now: 2 });
@@ -263,7 +264,7 @@ test('API: practice sandbox is isolated, bots draft fast, episodes simulate', ()
   assert.strictEqual(pubP().draft.status, 'complete');
   const e = P({ action: 'practice', op: 'episode' });
   assert.ok(e.ok, e.error);
-  assert.strictEqual(e.ep, 3);
+  assert.strictEqual(e.ep, 2);
   assert.strictEqual(pubP().castaways[e.boot].status, 'eliminated');
   assert.strictEqual(a.post({ action: 'practice', op: 'episode' }).error, 'practice_only');
   // Practice admin key works only in practice.
@@ -306,4 +307,12 @@ test('API: tie vote means no Machine', () => {
   const y = a.post({ action: 'join', name: 'Y', email: 'y@x.com', machineVote: 'nay' }).me;
   a.post({ action: 'admin', key: 'k', op: 'start_draft', rounds: 1, clockSec: 60, order: [x.id, y.id] });
   assert.strictEqual(a.get().data.league.machine.enabled, false);
+});
+
+test('default league scores Episode 2 (we draft before it airs) but not Episode 1', () => {
+  const l = leagueWith(2);
+  E.startDraft(l, CAST, { now: 0, order: ['p0', 'p1'], rounds: 1 });
+  E.applyPick(l, CAST, 'main', 'p0', 'rob', { now: 1 });
+  const episodes = { 1: { scores: { rob: { findIdol: true } } }, 2: { scores: { rob: { survives: true } } } };
+  assert.strictEqual(E.playerTotal(l, episodes, 'p0'), 3);
 });

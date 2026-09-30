@@ -33,7 +33,7 @@ var Engine = (function () {
     rounds: 4,              // Season 50 ran 4 rounds with 9 players
     maxPerCastaway: 2,      // a castaway comes off the board after 2 picks
     clockSec: 90,           // pick clock
-    scoringStartEp: 3,      // Episode 2 does not count (draft happens during/around it)
+    scoringStartEp: 2,      // we draft before Episode 2 airs, so Episode 2 counts; Episode 1 doesn't
     mergeMaxPerCastaway: 2,
     winnerBetPoints: 10,    // Pick the Winner bet, locks when the draft completes
     lastEpisode: 13

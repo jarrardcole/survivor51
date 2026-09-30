@@ -630,7 +630,7 @@
       var draftAt = L.draftAt ? new Date(L.draftAt).getTime() : null;
       h += '<div class="eyebrow">' + (PRACTICE ? '🧪 Practice league' : 'Survivor: 🌈 Brooklyn · Season 51') + '</div>' +
         '<h1>' + (PRACTICE ? 'Take it for a <em>test drive</em>' : 'Draft night is <em>coming</em>') + '</h1>' +
-        '<p>Twenty castaways are left after the premiere. We draft on Episode 2 night, Wed Sep 30, from our phones.' + (amIn() ? '' : ' Join now and take 2 minutes to get ready.') + '</p>' +
+        '<p>Twenty castaways are left after the premiere. We draft Wed Sep 30, before Episode 2 airs, from our phones.' + (amIn() ? '' : ' Join now and take 2 minutes to get ready.') + '</p>' +
         (draftAt ? '<div class="countdown" data-countdown="' + draftAt + '"></div>' : '') +
         '<div class="row">' + (amIn()
           ? (readiness().ready ? '<a class="btn primary lg" href="#draft">✅ You’re ready · review your backup plan</a>' : '<a class="btn primary lg" href="#setup">Finish getting draft-ready →</a>')
@@ -985,7 +985,7 @@
   // Pre-draft: rank your board + winner bet
   function draftPrep(v) {
     var L = v.league;
-    var h = '<div class="section-title" style="margin-top:0"><h2>Draft prep</h2><span class="muted">' + (L.draftAt ? 'Draft starts ' + new Date(L.draftAt).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : 'Wed, Sep 30 · Episode 2 night') + '</span></div>';
+    var h = '<div class="section-title" style="margin-top:0"><h2>Draft prep</h2><span class="muted">' + (L.draftAt ? 'Draft starts ' + new Date(L.draftAt).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : 'Wed, Sep 30 · before Episode 2') + '</span></div>';
     if (!amIn()) {
       return h + '<div class="card center stack"><h3>Join to set your backup plan</h3><div class="row" style="justify-content:center"><a class="btn primary" href="#join">Join the league</a><button class="btn" data-act="signin">Sign in</button></div></div>' + castBoard(v, 'main', { prep: true });
     }
@@ -1487,7 +1487,7 @@
       '</ul></div>';
 
     h += '<div class="card"><h3>Questions</h3>' +
-      qa('When do points start?', '<p>Episode ' + set.scoringStartEp + '. We draft on Episode 2 night, so Episode 2 doesn’t count.</p>') +
+      qa('When do points start?', '<p>With Episode ' + set.scoringStartEp + '.' + (set.scoringStartEp === 2 ? ' We draft before it airs, so everything from Episode 2 on counts. Episode 1 doesn’t.' : '') + '</p>') +
       qa('What if I can’t make the draft?', '<p>Set your backup plan (your ranked top ' + listTarget() + ') beforehand. It picks for you whenever it’s your turn.</p>') +
       qa('What happens when my castaway goes home?', '<p>You keep the points they already earned. They just stop earning more.</p>') +
       qa('What’s the merge draft?', '<p>Around the merge, everyone adds one more castaway to their team. Last place picks first.</p>') +
