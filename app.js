@@ -630,7 +630,7 @@
       var draftAt = L.draftAt ? new Date(L.draftAt).getTime() : null;
       h += '<div class="eyebrow">' + (PRACTICE ? '🧪 Practice league' : 'Survivor: 🌈 Brooklyn · Season 51') + '</div>' +
         '<h1>' + (PRACTICE ? 'Take it for a <em>test drive</em>' : 'Draft night is <em>coming</em>') + '</h1>' +
-        '<p>Twenty castaways are left after the premiere. We draft Wed Sep 30, before Episode 2 airs, from our phones.' + (amIn() ? '' : ' Join now and take 2 minutes to get ready.') + '</p>' +
+        '<p>Twenty castaways are left after the premiere. We draft Wed Sep 30, ' + (L.settings.scoringStartEp >= 3 ? 'after Episode 2' : 'before Episode 2 airs') + ', from our phones.' + (amIn() ? '' : ' Join now and take 2 minutes to get ready.') + '</p>' +
         (draftAt ? '<div class="countdown" data-countdown="' + draftAt + '"></div>' : '') +
         '<div class="row">' + (amIn()
           ? (readiness().ready ? '<a class="btn primary lg" href="#draft">✅ You’re ready · review your backup plan</a>' : '<a class="btn primary lg" href="#setup">Finish getting draft-ready →</a>')
@@ -926,6 +926,7 @@
     var h = '<div class="tv-lobby">' + brooklynMap('hero-map') +
       '<div class="tv-lobby-head"><div class="eyebrow">Survivor: 🌈 Brooklyn · Season 51</div><h1 class="display">Draft night</h1>' +
       (at ? '<div class="countdown" data-countdown="' + at + '"></div>' : '<p class="muted">Starting soon.</p>') + '</div>' +
+      (isHost() ? '<div style="margin-bottom:16px">' + draftTimingCard(L) + '</div>' : '') +
       '<div class="tv-lobby-grid"><div class="card"><div class="row" style="margin-bottom:12px"><h3 class="grow" style="margin:0">Who’s in (' + ps.length + ')</h3><span class="chip good">' + ready + ' draft-ready</span></div>' +
       '<div class="lobby" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">' + ps.map(function (p) {
         var ok = p.hasWinnerBet && p.queueSize >= listTarget();
@@ -935,6 +936,30 @@
       '<div class="card machine-card"><b>🤖 The Machine vote</b><div class="vote-tally" style="margin-top:6px"><b>' + t.yay + '</b> yay · <b>' + t.nay + '</b> nay</div><div class="tiny dim">Closes when the draft starts.</div></div>' +
       '</div></div></div>';
     return h;
+  }
+
+  // Before or after Episode 2? Will sets this right before starting. "After" means
+  // Episode 2 doesn't score and whoever went home comes off the board.
+  function ep2Out(L) {
+    return CAST.filter(function (c) { var o = L.castaways[c.id]; return o && o.status === 'eliminated' && o.eliminatedEp === 2; }).map(function (c) { return c.id; });
+  }
+  function draftTimingCard(L) {
+    if (L.draft.status !== 'open') return '';
+    var after = L.settings.scoringStartEp >= 3;
+    var out = ep2Out(L);
+    var h = '<div class="card timing-card"><h3 style="margin-bottom:8px">When are we drafting?</h3>' +
+      '<div class="seg" style="margin-bottom:10px"><button class="' + (after ? '' : 'on') + '" data-act="t_before">Before Episode 2</button><button class="' + (after ? 'on' : '') + '" data-act="t_after">After Episode 2</button></div>';
+    if (!after) {
+      h += '<p class="small muted" style="margin:0">Episode 2 will count for points. Nothing else to do.</p>';
+    } else {
+      h += '<p class="small" style="margin:0 0 8px"><b>Tap who went home in Episode 2.</b> <span class="muted">They come off the draft board, and points start with Episode 3.</span></p>' +
+        '<div class="elim-grid">' + CAST.filter(function (c) { return c.status === 'active'; }).map(function (c) {
+          var isOut = out.indexOf(c.id) !== -1;
+          return '<button class="elim-pick' + (isOut ? ' on' : '') + '" data-act="t_elim" data-id="' + c.id + '">' + ava(c.id, 'xs') + '<span>' + esc(c.shortName) + '</span>' + (isOut ? '<b>OUT</b>' : '') + '</button>';
+        }).join('') + '</div>' +
+        (out.length ? '<p class="small" style="margin:8px 0 0">✓ Out: <b>' + out.map(function (id) { return esc(CASTBY[id].shortName); }).join(', ') + '</b></p>' : '<p class="small" style="margin:8px 0 0;color:var(--flame)">Nobody marked yet.</p>');
+    }
+    return h + '</div>';
   }
 
   // Small floating controls, only on the host's screen.
@@ -985,7 +1010,7 @@
   // Pre-draft: rank your board + winner bet
   function draftPrep(v) {
     var L = v.league;
-    var h = '<div class="section-title" style="margin-top:0"><h2>Draft prep</h2><span class="muted">' + (L.draftAt ? 'Draft starts ' + new Date(L.draftAt).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : 'Wed, Sep 30 · before Episode 2') + '</span></div>';
+    var h = '<div class="section-title" style="margin-top:0"><h2>Draft prep</h2><span class="muted">' + (L.draftAt ? 'Draft starts ' + new Date(L.draftAt).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : 'Wed, Sep 30 · ' + (L.settings.scoringStartEp >= 3 ? 'after Episode 2' : 'before Episode 2')) + '</span></div>';
     if (!amIn()) {
       return h + '<div class="card center stack"><h3>Join to set your backup plan</h3><div class="row" style="justify-content:center"><a class="btn primary" href="#join">Join the league</a><button class="btn" data-act="signin">Sign in</button></div></div>' + castBoard(v, 'main', { prep: true });
     }
@@ -1536,7 +1561,8 @@
     var ps = Engine.activePlayers(L);
     var cap = Engine.activeCastawayIds(L, CAST).length * L.settings.maxPerCastaway;
     var maxRounds = ps.length ? Math.floor(cap / ps.length) : 4;
-    var h = '<div class="admin-grid">';
+    var h = d.status === 'open' ? '<div style="margin-bottom:16px">' + draftTimingCard(L) + '</div>' : '';
+    h += '<div class="admin-grid">';
     // Main draft
     h += '<div class="card stack"><h3>Main draft · <span class="chip ' + (d.status === 'live' ? 'live' : '') + '">' + d.status.toUpperCase() + '</span></h3>';
     if (d.status === 'open') {
@@ -1835,6 +1861,25 @@
       case 'castaway':
         if (isHost() && liveKind()) { hostPick(id); return; }
         castawaySheet(id, t.dataset.kind); return;
+      case 't_before': {
+        var Lb = S.data.league;
+        var restore = ep2Out(Lb);
+        var chain = admin('settings', { settings: { scoringStartEp: 2 } });
+        restore.forEach(function (cid) { chain = chain.then(function () { return admin('set_castaway', { id: cid, status: 'active', eliminatedEp: null, elimType: null }); }); });
+        chain.then(function () { toast('Drafting before Episode 2. Episode 2 counts.'); redraw(S.route); }).catch(function (e) { toast(errMsg(e), true); });
+        return;
+      }
+      case 't_after':
+        admin('settings', { settings: { scoringStartEp: 3 } }).then(function () { toast('Drafting after Episode 2. Now tap who went home.'); redraw(S.route); }).catch(function (e) { toast(errMsg(e), true); });
+        return;
+      case 't_elim': {
+        var isOut = ep2Out(S.data.league).indexOf(id) !== -1;
+        t.disabled = true;
+        admin('set_castaway', isOut ? { id: id, status: 'active', eliminatedEp: null, elimType: null } : { id: id, status: 'eliminated', eliminatedEp: 2, elimType: 'voted' })
+          .then(function () { toast(CASTBY[id].shortName + (isOut ? ' is back on the board.' : ' marked out in Episode 2.')); redraw(S.route); })
+          .catch(function (e) { toast(errMsg(e), true); t.disabled = false; });
+        return;
+      }
       case 'h_ok': { var fn = S.hostOk; S.hostOk = null; closeSheet(); if (fn) fn(); return; }
       case 'h_pick':
         t.disabled = true; t.textContent = 'Drafting…';

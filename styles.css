@@ -607,3 +607,11 @@ body.is-host .bc:hover:not(.gone):not(.out) { border-color: var(--flame); box-sh
   .brand-text i { display: none; }
   .me-chip .btn.ghost { display: none; }   /* "Sign in" is still on the homepage ("I already joined") */
 }
+
+/* ---------- Draft timing (before/after Episode 2) ---------- */
+.timing-card { border-color: rgba(255, 178, 63, .4); }
+.elim-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; }
+.elim-pick { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 10px; border: 1px solid var(--line-2); background: rgba(0,0,0,.25); color: var(--text); cursor: pointer; font-weight: 700; font-size: 13px; text-align: left; }
+.elim-pick span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.elim-pick b { font-size: 10px; color: #fff; background: var(--bad); padding: 1px 5px; border-radius: 4px; }
+.elim-pick.on { border-color: var(--bad); background: rgba(255, 90, 95, .12); }
