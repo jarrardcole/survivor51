@@ -18,7 +18,7 @@ At Savu, **Ana** had been throwing names around, and **Sharonda** spoke for the 
 - Jim and Matt took the same route: three Savu castaways who sat through Tribal and lived. Kristin and Eric are pulling double duty for both of them. **+9 pts** apiece.
 - Ryan took the scenic route. Ori and Alexis survived, and Jelly's idol added **+3 pts**. A balanced attack.
 
-**The pack is right behind them at 6:** **Jarrard**, **Jimmy B**, **Martin**, **Will Taylor** and **Matt-I'm a survivor I'm not gon' give up**. Matt's team name has done more talking than his team so far, but it's early.
+**The pack is right behind them at 6:** **Jarrard**, **Jimmy B**, **Martin**, **Will Taylor** and **Matt-I'm a survivor I'm not gon' give up**. That team name has done more talking than the team so far, but it's early.
 
 **Trouble on the back stretch.** **Henry Evans** drafted Ana, and Ana is now on a plane. Rob kept Henry on the board with **+3 pts**. **Daveyy Sak** also had Ana, and Daveyy's other three are on Toka, the tribe that never went to Tribal. That's a clean, crisp **zero**. Not out of it. Just... out of it this week.
 
