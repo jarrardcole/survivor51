@@ -1,54 +1,37 @@
 ---
 ep: 2
-title: Rob Tries to Vote for Himself, Ana Goes Home
+title: And They're Off! Three-Way Tie at the First Turn
 author: The Commissioner
 ---
-Points are on the board. Episode 2 was the first one that counts, and it delivered a thumb injury, a hidden idol, and a man trying to vote himself out on purpose.
+Good evening, and welcome to week one of the Brooklyn Survivor League. The track is wet, the tribes are restless, and somebody already tried to vote himself out. Let's go to the tape.
 
-## What happened
+## On the island
 
-**Toka (yellow)** had a great week. They won the reward challenge and then the immunity challenge, which meant dragging a 500-pound whale through the water. That sent **Savu (purple)** to its first Tribal Council.
+**Toka (yellow)** swept both challenges, including dragging a 500-pound whale through the water, so **Savu (purple)** went to its first Tribal. Toka's week wasn't totally clean: **Brady** took off part of a fingertip with the camp axe and stayed in the game anyway. **Jelly** quietly found an idol and told **Patt**, but not **Devin**.
 
-It was not a calm week for Toka's bodies, though. **Brady** sliced off part of his fingertip with the camp axe. The medic patched him up and he stayed in the game. Over at Savu, **Kristin** took a hard fall during the reward challenge and played through it.
+At Savu, **Ana** had been throwing names around, and **Sharonda** spoke for the tribe: if Ana's coming for us, we're coming for her. At Tribal, **Rob** tried to protect **Eric** by writing down his *own* name. Production stopped him. You can't do that. Rob also sat on his idol all night. **Ana** went home, 6–4.
 
-Back at Toka camp, **Jelly** went looking for an idol and found one. She told **Patt** and kept it from **Devin**. That turned into a new five-person group with Patt, Jelly, Devin, Brady and Mike.
+## The race
 
-At Savu, **Ana** had been tossing out names. **Alexis** heard about it and told Sharonda and Linnea. **Sharonda** summed up the mood: if Ana was coming for them, they were coming for her.
+**Out of the gate, it's a three-way tie at the front!** **Jim Frisch**, **Matt Jennings** and **Ryan Thaxton** all post **9 pts**.
 
-Then came Tribal. **Rob** had a plan to protect **Eric**. Step one was to write his own name down. Production stopped him in the voting booth, because you are not allowed to vote for yourself. Rob held an idol the whole time and didn't play it. In the end, **Ana** went home, 6–4. Rob, Ori, Carter and Ana voted for Eric. Everyone else voted for Ana.
+- Jim and Matt took the same route: three Savu castaways who sat through Tribal and lived. Kristin and Eric are pulling double duty for both of them. **+9 pts** apiece.
+- Ryan took the scenic route. Ori and Alexis survived, and Jelly's idol added **+3 pts**. A balanced attack.
 
-## Who scored
+**The pack is right behind them at 6:** **Jarrard**, **Jimmy B**, **Martin**, **Will Taylor** and **Matt-I'm a survivor I'm not gon' give up**. Matt's team name has done more talking than his team so far, but it's early.
 
-Everyone on Savu who made it through Tribal earned **+3 pts**. Toka won immunity, so their castaways earned nothing for surviving this week. That's the rule.
-
-- **Jelly** earned **+3 pts** for her idol. **Ryan Thaxton** and **Will Taylor** both have her.
-- **Jim Frisch** (Kristin, Eric, Sharonda) and **Matt Jennings** (Kristin, Eric, Linnea) each had three Savu survivors. **+9 pts** apiece.
-- **Ryan Thaxton** got there a different way: Ori and Alexis survived, and Jelly found her idol. **+9 pts**.
-
-Who got burned:
-
-- **Daveyy Sak** had Ana. Daveyy's other three are all on Toka. That's **0 pts** this week.
-- **Henry Evans** also had Ana. Rob saved Henry from a shutout: **+3 pts**.
-
-## Standings
-
-1. **Jim Frisch**, **Matt Jennings** and **Ryan Thaxton**: tied at 9
-2. **Jarrard**, **Jimmy B**, **Martin**, **Matt-I'm a survivor I'm not gon' give up** and **Will Taylor**: 6
-3. **Henry Evans**: 3
-4. **Daveyy Sak**: 0
-
-Since this is the first week, everyone went up from zero. The three-way tie for first is the story.
+**Trouble on the back stretch.** **Henry Evans** drafted Ana, and Ana is now on a plane. Rob kept Henry on the board with **+3 pts**. **Daveyy Sak** also had Ana, and Daveyy's other three are on Toka, the tribe that never went to Tribal. That's a clean, crisp **zero**. Not out of it. Just... out of it this week.
 
 ## 🤖 The Machine report
 
-The Machine has **6 pts**, thanks to Rob and Kristin. It is tied with five humans and ahead of two. It would like **Henry** and **Daveyy** to know that it is not keeping track. It is keeping track.
+The Machine has **6 pts**, courtesy of Rob and Kristin. That puts it level with five humans and ahead of two. The Machine would like **Henry** and **Daveyy** to know it is not keeping track. It is keeping track.
 
-## Fun stat
+## Stat of the week
 
-Every point scored this week came from Savu, except Jelly's idol. Toka's castaways were the best team on the island, and their owners got almost nothing for it.
+Toka was the best team on the island and paid its owners almost nothing. Win immunity, skip Tribal, earn zero. Every point this week came from Savu, plus Jelly's idol.
 
 ## Next week
 
-Rob's idol is still in his pocket. Jelly now has one too. That's two idols in play, and each is worth **+8 pts** if it saves someone. It's **−5 pts** if its owner goes home holding it. Savu is down to nine. If they lose again, that idol could finally come out.
+There are now two idols in play: Rob's and Jelly's. Each is worth **+8 pts** if it saves someone, and **−5 pts** if its owner goes home holding it. Savu is down to nine. One more loss and Rob may finally have to stop writing his own name and start playing that thing.
 
 > The tribe has spoken. The scoreboard has too.
