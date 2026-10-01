@@ -1,0 +1,15 @@
+{ "ep": 2, "title": "Weaponized Honesty",
+  "scores": {
+    "alexis": { "survives": true }, "carter": { "survives": true }, "cristian": { "survives": true },
+    "eric": { "survives": true }, "kristin": { "survives": true }, "linnea": { "survives": true },
+    "ori": { "survives": true }, "rob": { "survives": true }, "sharonda": { "survives": true },
+    "jelly": { "findIdol": true }
+  },
+  "eliminated": [ { "id": "ana", "type": "voted" } ],
+  "sources": [
+    "https://en.wikipedia.org/wiki/Survivor_51",
+    "https://www.tvline.com/2273869/survivor-51-recap-episode-2-ana-voted-out/",
+    "https://www.hollywoodoutbreak.com/2026/09/30/survivor-51-week-2-recap-gruesome-injury-tribal-chaos/",
+    "https://dknetwork.draftkings.com/2026/09/30/who-was-voted-out-on-survivor-tonight-episode-2-recap/",
+    "https://www.realityblurred.com/realitytv/2026/09/survivor-51-episode-2-weaponized-honesty-recap/"
+  ] }
