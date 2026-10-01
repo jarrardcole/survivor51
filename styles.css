@@ -615,3 +615,36 @@ body.is-host .bc:hover:not(.gone):not(.out) { border-color: var(--flame); box-sh
 .elim-pick span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .elim-pick b { font-size: 10px; color: #fff; background: var(--bad); padding: 1px 5px; border-radius: 4px; }
 .elim-pick.on { border-color: var(--bad); background: rgba(255, 90, 95, .12); }
+
+/* ---------- Season-mode polish ---------- */
+.you-card { border-left: 4px solid var(--pc); }
+.you-line { font-size: 15px; color: var(--muted); margin-top: 2px; }
+.you-line b { font-family: var(--display); font-weight: 400; font-size: 30px; color: var(--text); margin-right: 2px; }
+.you-team { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.ychip, .cchip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 3px; border-radius: 999px; background: rgba(0,0,0,.25); border: 1px solid var(--line); font-size: 13px; font-weight: 700; cursor: pointer; }
+.ychip i { font-style: normal; font-size: 11px; color: var(--dim); }
+.ychip i.up { color: var(--good); }
+.ychip.out, .cchip.out { opacity: .55; text-decoration: line-through; }
+.cchip { font-size: 12px; padding: 2px 8px 2px 2px; cursor: default; }
+.cchip.merge { border-style: dashed; }
+.lb-team { gap: 4px; }
+.lb-name { min-width: 0; }
+.lb-name .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.this-week { margin-top: 14px; }
+.tw { display: flex; gap: 10px; align-items: center; padding: 5px 0; font-size: 14px; flex-wrap: wrap; }
+.tw-k { width: 112px; flex: none; font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+.tw-v { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.machine-score { font-size: 14px; color: var(--machine); margin: 2px 0 4px; }
+.machine-score b { font-family: var(--display); font-weight: 400; font-size: 22px; }
+.prose.clamped { max-height: 360px; overflow: hidden; -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent); mask-image: linear-gradient(180deg, #000 70%, transparent); }
+.owners { gap: 4px; }
+.oname { font-size: 10.5px; font-weight: 800; padding: 1px 6px; border-radius: 5px; background: color-mix(in srgb, var(--pc) 22%, transparent); color: var(--text); border: 1px solid color-mix(in srgb, var(--pc) 55%, transparent); white-space: nowrap; }
+.teams-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.team-card { border-left: 4px solid var(--pc); padding: 14px; }
+.team-card.mine { box-shadow: 0 0 0 1px var(--pc); }
+.team-card .rk { font-family: var(--display); font-size: 22px; color: var(--dim); width: 26px; }
+.team-card .tname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.team-card .tpts { font-family: var(--display); font-weight: 400; font-size: 26px; }
+.trow { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-top: 1px solid var(--line); font-size: 14px; font-weight: 600; cursor: pointer; }
+.trow.out { opacity: .6; }
+@media (max-width: 760px) { .machine-row .lb-name .chip { display: none; } }

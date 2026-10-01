@@ -327,12 +327,12 @@
     } else if (S.data && S.data.league.draft.status === 'open') {
       chip.innerHTML = '<a class="btn primary sm" href="#join">Join</a><button class="btn sm ghost" data-act="signin">Sign in</button>';
     } else {
-      chip.innerHTML = '<button class="btn sm ghost" data-act="signin">Sign in</button>';
+      chip.innerHTML = '<button class="btn sm" data-act="signin">Sign in</button>';
     }
     var needsSetup = S.data && amIn() && S.data.league.draft.status === 'open' && !readiness().ready;
     var teamsMode = S.data && S.data.league.draft.status === 'complete' && S.data.league.merge.status !== 'live' && S.data.league.merge.status !== 'paused';
     $$('[data-route="draft"] .lbl').forEach(function (el) { el.textContent = teamsMode ? 'Teams' : 'Draft'; });
-    $$('.tabbar [data-route="draft"] .ti').forEach(function (el) { el.textContent = teamsMode ? '🧑‍🤝‍🧑' : '🔥'; });
+    $$('.tabbar [data-route="draft"] .ti').forEach(function (el) { el.textContent = teamsMode ? '👥' : '🔥'; });
     $$('[data-route="draft"]').forEach(function (a) { a.classList.toggle('nudge', !!needsSetup); });
     var lk = liveKind();
     $$('[data-route="draft"]').forEach(function (a) { a.classList.toggle('live', !!lk && S.data && S.data[lk === 'merge' ? 'league' : 'league'][lk === 'merge' ? 'merge' : 'draft'].status === 'live'); });
@@ -660,8 +660,14 @@
         h += '<h1>Episode ' + v.hidden + ' <em>results are in</em></h1><p>Watched it? Tap below to see who went home and the new standings.</p>';
       } else if (rows.length && scored.length && rows[0].total > 0) {
         var leaders = rows.filter(function (r) { return r.rank === 1; });
-        h += '<h1><em>' + esc(leaders.map(function (r) { return r.name.split(' ')[0]; }).join(' & ')) + '</em> ' + (leaders.length > 1 ? 'share' : 'leads') + ' the league</h1>' +
-          '<p>' + rows[0].total + ' points' + (rows[1] && rows[1].rank !== 1 ? ', ' + (rows[0].total - rows[1].total) + ' ahead of ' + esc(rows[1].name) : '') + '. ' + (next ? 'Episode ' + next.ep + ' is next.' : '') + '</p>';
+        var words = ['', '', 'Two', 'Three', 'Four', 'Five', 'Six'];
+        if (leaders.length >= 3) {
+          h += '<h1><em>' + (words[leaders.length] || leaders.length) + '-way tie</em> at the top</h1>' +
+            '<p>' + esc(leaders.map(function (r) { return firstName(r.name); }).join(', ')) + ' · ' + rows[0].total + ' points each. ' + (next ? 'Episode ' + next.ep + ' is next.' : '') + '</p>';
+        } else {
+          h += '<h1><em>' + esc(leaders.map(function (r) { return firstName(r.name); }).join(' & ')) + '</em> ' + (leaders.length > 1 ? 'share' : 'leads') + ' the league</h1>' +
+            '<p>' + rows[0].total + ' points' + (rows[leaders.length] ? ', ' + (rows[0].total - rows[leaders.length].total) + ' ahead of ' + esc(shortName(rows[leaders.length].name)) : '') + '. ' + (next ? 'Episode ' + next.ep + ' is next.' : '') + '</p>';
+        }
       } else {
         h += scored.length
           ? '<h1>Still <em>all square</em></h1><p>Nobody has scored yet after Episode ' + scored[scored.length - 1] + '. ' + (next ? 'Episode ' + next.ep + ' is next.' : '') + '</p>'
@@ -675,6 +681,10 @@
     if (L.draft.status !== 'complete') h += spoilerBar(v);
     // The one thing a joined player still needs to do comes right after the hero.
     if (phase === 'open' && amIn()) h += '<div style="margin-top:18px">' + readinessCard(true) + '</div>';
+    if (L.draft.status === 'complete') {
+      if (amIn()) h += '<div style="margin-top:14px">' + youCard(v) + '</div>';
+      h += thisWeekCard(v);
+    }
     if (PRACTICE) h += '<div style="margin-top:18px">' + practiceLab() + '</div>';
 
     // Commissioner's Notes
@@ -684,7 +694,6 @@
     if (phase === 'open') h += machineVoteCard(L) + lobbyCard(L);
     else {
       h += miniStandings(v);
-      if (amIn()) h += myTeamCard(v);
       h += machineCard(v, true);
     }
     h += '</div></div>';
@@ -722,6 +731,61 @@
     return null;
   }
 
+  // Short display names so long team names never break a layout.
+  function shortName(n) { n = String(n || ''); return n.length > 22 ? n.slice(0, 20).trim() + '…' : n; }
+  function firstName(n) { var f = String(n || '').split(/[\s-]/)[0]; return f.length > 14 ? f.slice(0, 13) + '…' : f; }
+
+  // The question everyone opens the site with: how am I doing?
+  function youCard(v) {
+    var L = v.league;
+    var rows = Engine.standings(L, v.episodes);
+    var me = rows.filter(function (r) { return r.playerId === S.me.id; })[0];
+    if (!me) return '';
+    var eps = Engine.episodeNumbers(L, v.episodes);
+    var last = eps[eps.length - 1];
+    var r = Engine.roster(L, S.me.id);
+    var ids = r.draft.concat(r.merge.filter(function (id) { return r.draft.indexOf(id) === -1; }));
+    var tied = rows.filter(function (x) { return x.rank === me.rank; }).length > 1;
+    var back = rows[0].total - me.total;
+    var place = (tied ? 'tied for ' : '') + ordinal(me.rank);
+    var h = '<div class="card you-card" style="--pc:' + esc(me.color) + '"><div class="row" style="flex-wrap:nowrap;align-items:flex-start">' +
+      '<div class="grow"><div class="eyebrow" style="color:var(--muted)">' + (v.hidden ? 'Your team' : 'You’re ' + place) + '</div>' +
+      (v.hidden ? '<div class="small muted" style="margin-top:2px">Points hidden until you’ve watched Episode ' + v.hidden + '.</div>'
+        : '<div class="you-line"><b>' + me.total + '</b> pts' + (me.rank === 1 ? (tied ? ' · tied at the top' : ' · leading') : ' · ' + back + ' back') + '</div>') + '</div>' +
+      '</div>' +
+      '<div class="you-team">' + ids.map(function (id) {
+        var c = CASTBY[id], s2 = st(v, id);
+        var pts = last != null && !v.hidden ? Engine.castawayEpisodePoints(v.episodes, id, last) : null;
+        return '<span class="ychip' + (s2.status !== 'active' ? ' out' : '') + '" data-act="castaway" data-id="' + id + '">' + ava(id, 'xs', v) + esc(c.shortName) +
+          (s2.status !== 'active' ? ' <i>out</i>' : pts ? ' <i class="up">+' + pts + '</i>' : '') + '</span>';
+      }).join('') + '</div>';
+    var bet = L.winnerBets && L.winnerBets[S.me.id];
+    if (bet) h += '<div class="tiny dim" style="margin-top:8px">Winner pick: ' + esc(CASTBY[bet].shortName) + (st(v, bet).status !== 'active' ? ' (out)' : '') + '</div>';
+    return h + '</div>';
+  }
+
+  // Built from the scoring data: who went home, who gained most, who lost a castaway.
+  function thisWeekCard(v) {
+    var L = v.league;
+    if (v.hidden) return '';
+    var eps = Engine.episodeNumbers(L, v.episodes);
+    if (!eps.length) return '';
+    var ep = eps[eps.length - 1];
+    var e = v.episodes[ep] || {};
+    var out = (e.eliminated || []).map(function (x) { return x.id; });
+    var rows = Engine.standings(L, v.episodes);
+    var gains = rows.map(function (r) { return { r: r, pts: Engine.playerEpisodePoints(L, v.episodes, r.playerId, ep) }; });
+    var top = Math.max.apply(null, gains.map(function (g) { return g.pts; }));
+    var best = gains.filter(function (g) { return g.pts === top && top > 0; });
+    var hit = rows.filter(function (r) { var ro = Engine.roster(L, r.playerId); return out.some(function (id) { return ro.draft.indexOf(id) !== -1 || ro.merge.indexOf(id) !== -1; }); });
+    var items = [];
+    if (out.length) items.push('<div class="tw"><span class="tw-k">Went home</span><span class="tw-v">' + out.map(function (id) { return ava(id, 'xs', v) + ' <b>' + esc(CASTBY[id].shortName) + '</b>'; }).join(', ') + '</span></div>');
+    if (best.length) items.push('<div class="tw"><span class="tw-k">Best week</span><span class="tw-v"><b>' + esc(best.map(function (g) { return firstName(g.r.name); }).join(', ')) + '</b> +' + top + '</span></div>');
+    if (hit.length) items.push('<div class="tw"><span class="tw-k">Lost a castaway</span><span class="tw-v">' + esc(hit.map(function (r) { return firstName(r.name); }).join(', ')) + '</span></div>');
+    if (!items.length) return '';
+    return '<div class="card this-week"><div class="eyebrow" style="margin-bottom:8px">This week · Episode ' + ep + '</div>' + items.join('') + '</div>';
+  }
+
   function notesBlock(v) {
     var keys = Object.keys(v.notes || {}).map(Number).sort(function (a, b) { return b - a; });
     if (!keys.length) {
@@ -734,9 +798,13 @@
     h += '<div class="notes-head"><div class="notes-badge">📜</div><div class="grow"><div class="eyebrow">Commissioner’s Notes · ' + (sel === 0 ? 'Preseason' : 'Episode ' + sel) + '</div>' +
       '<div class="tiny dim">' + esc(n.author || 'The Commissioner') + ' · ' + new Date(n.publishedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + '</div></div></div>';
     if (gated) {
-      h += '<div class="spoiler-gate"><div class="big">🙈</div><h3>Spoilers for Episode ' + sel + '</h3><p class="muted">This write-up covers what happened on the show.</p><button class="btn primary" data-act="watched" data-ep="' + sel + '">I’ve watched it — show me</button></div>';
+      h += S.data.league.draft.status === 'complete'
+        ? '<p class="muted" style="margin:6px 0 0">🙈 This week’s write-up is hidden until you tap <b>“I’ve watched it”</b> above.</p>'
+        : '<div class="spoiler-gate"><div class="big">🙈</div><h3>Spoilers for Episode ' + sel + '</h3><p class="muted">This write-up covers what happened on the show.</p><button class="btn primary" data-act="watched" data-ep="' + sel + '">I’ve watched it. Show me</button></div>';
     } else {
-      h += '<h2 class="notes-title">' + esc(n.title) + '</h2><div class="prose" style="margin-top:14px">' + md(n.body) + '</div>';
+      var clamp = window.innerWidth < 760 && !(S.notesOpen && S.notesOpen[sel]);
+      h += '<h2 class="notes-title">' + esc(n.title) + '</h2><div class="prose' + (clamp ? ' clamped' : '') + '" style="margin-top:14px">' + md(n.body) + '</div>' +
+        (clamp ? '<button class="btn block" data-act="readmore" data-ep="' + sel + '" style="margin-top:8px">Read the rest</button>' : '');
     }
     if (keys.length > 1) {
       h += '<div class="notes-archive"><span class="tiny dim" style="align-self:center">Past weeks:</span>' + keys.map(function (k) {
@@ -1113,7 +1181,8 @@
     if (L.merge.status !== 'off') {
       h += '<div class="seg" style="margin-bottom:12px"><button class="' + (kind === 'merge' ? 'on' : '') + '" data-act="drafttab" data-tab="merge">Merge draft</button><button class="' + (kind === 'main' ? 'on' : '') + '" data-act="drafttab" data-tab="main">Main draft</button></div>';
     }
-    if (d.status === 'complete') return h + draftComplete(v, kind);
+    if (d.status === 'complete' && kind === 'main' && S.teamsView !== 'board') return h + teamsPage(v);
+    if (d.status === 'complete') return h + (kind === 'main' ? '<div class="seg" style="margin-bottom:12px"><button data-act="teamsview" data-v="teams">Teams</button><button class="on">Draft-night board</button></div>' : '') + draftComplete(v, kind);
 
     var mine = slot && isMe(slot.playerId);
     var total = Engine.totalSlots(d);
@@ -1210,8 +1279,17 @@
     var L = v.league;
     if (!machineOn(L)) return '';
     var m = L.machine;
-    var h = '<div class="card machine-card"><div class="row" style="margin-bottom:8px"><span style="font-size:22px">🤖</span><div class="grow"><h3 style="margin:0">The Machine’s shadow team</h3>' +
-      '<div class="tiny dim">The league voted it in (' + m.votes.yay + '–' + m.votes.nay + '). It picks once at the end of each round, doesn’t take anyone’s spot, and can’t win. It just wants to beat you.</div></div></div>';
+    var eps = Engine.episodeNumbers(L, v.episodes);
+    var standing = '';
+    if (eps.length && !v.hidden) {
+      var mt = Engine.machineTotal(L, v.episodes);
+      var rows = Engine.standings(L, v.episodes);
+      var ahead = rows.filter(function (r) { return r.total < mt; }).length;
+      var level = rows.filter(function (r) { return r.total === mt; }).length;
+      standing = '<div class="machine-score"><b>' + mt + '</b> pts · ahead of ' + plural(ahead, 'human') + (level ? ', tied with ' + level : '') + '</div>';
+    }
+    var h = '<div class="card machine-card"><div class="row" style="margin-bottom:8px"><span style="font-size:22px">🤖</span><div class="grow"><h3 style="margin:0">The Machine</h3>' +
+      standing + '<div class="tiny dim">AI shadow team, voted in ' + m.votes.yay + '–' + m.votes.nay + '. It can’t win. It just wants to beat you.</div></div></div>';
     if (!m.picks.length) h += '<div class="small dim">First pick comes at the end of round 1.</div>';
     h += m.picks.map(function (p) {
       var c = CASTBY[p.castawayId];
@@ -1290,6 +1368,31 @@
     return h + '</tbody></table></div></div>';
   }
 
+  function teamsPage(v) {
+    var L = v.league;
+    var rows = Engine.standings(L, v.episodes);
+    var eps = Engine.episodeNumbers(L, v.episodes);
+    var h = '<div class="section-title" style="margin-top:0"><h2>Teams</h2><span class="muted">in standings order</span></div>' +
+      '<div class="seg" style="margin-bottom:14px"><button class="on">Teams</button><button data-act="teamsview" data-v="board">Draft-night board</button></div>';
+    if (v.hidden) h += '<p class="small muted" style="margin:0 0 12px">🙈 Episode ' + v.hidden + ' points are hidden until you’ve watched it.</p>';
+    h += '<div class="teams-grid">' + rows.map(function (r) {
+      var ro = Engine.roster(L, r.playerId);
+      var ids = ro.draft.map(function (id) { return { id: id, from: null }; }).concat(ro.merge.filter(function (id) { return ro.draft.indexOf(id) === -1; }).map(function (id) { return { id: id, from: L.merge.startEp }; }));
+      var bet = L.winnerBets && L.winnerBets[r.playerId];
+      return '<div class="card team-card' + (isMe(r.playerId) ? ' mine' : '') + '" style="--pc:' + esc(r.color) + '">' +
+        '<div class="row" style="flex-wrap:nowrap;margin-bottom:8px"><span class="rk">' + r.rank + '</span><b class="grow tname">' + esc(r.name) + (isMe(r.playerId) ? ' <span class="you">YOU</span>' : '') + '</b><b class="tpts">' + r.total + '</b></div>' +
+        ids.map(function (x) {
+          var c = CASTBY[x.id], s2 = st(v, x.id);
+          var pts = Engine.castawayTotal(L, v.episodes, x.id, x.from);
+          return '<div class="trow' + (s2.status !== 'active' ? ' out' : '') + '" data-act="castaway" data-id="' + x.id + '">' + ava(x.id, 'xs', v) + '<span class="grow">' + esc(c.shortName) + (x.from ? ' <span class="chip">merge</span>' : '') + (s2.status !== 'active' ? ' <span class="tiny" style="color:#FF9EA1">out Ep ' + s2.eliminatedEp + '</span>' : '') + '</span><span class="tiny ' + (pts ? '' : 'dim') + '">' + (eps.length ? pts + ' pts' : '') + '</span></div>';
+        }).join('') +
+        (bet ? '<div class="tiny dim" style="margin-top:6px">🏆 Winner pick: ' + esc(CASTBY[bet].shortName) + (st(v, bet).status !== 'active' ? ' (out)' : '') + '</div>' : '') +
+        '</div>';
+    }).join('') + '</div>';
+    if (machineOn(L)) h += '<div style="margin-top:14px">' + machineCard(v) + '</div>';
+    return h;
+  }
+
   function draftComplete(v, kind) {
     var L = v.league;
     var h = '<div class="section-title" style="margin-top:0"><h2>' + (kind === 'merge' ? 'Merge picks' : 'Teams') + '</h2><span class="muted">' + (kind === 'merge' ? 'merge picks score from Episode ' + L.merge.startEp + ' on' : 'every pick from draft night') + '</span></div>';
@@ -1316,23 +1419,28 @@
     }
     var rows = Engine.standings(L, v.episodes);
     var eps = Engine.episodeNumbers(L, v.episodes);
-    var probs = eps.length ? winProbs(v) : {};
-    var last = eps[eps.length - 1];
+    var showOdds = eps.length >= 4;           // too noisy to mean anything in the first few weeks
+    var probs = showOdds ? winProbs(v) : {};
+    var last = eps.length > 1 ? eps[eps.length - 1] : null;
     var h = spoilerBar(v);
-    h += '<div class="section-title" style="margin-top:0"><h2>Standings</h2><span class="muted">' + (eps.length ? 'through Episode ' + last : 'no episodes scored yet') + '</span></div>';
+    h += '<div class="section-title" style="margin-top:0"><h2>Standings</h2><span class="muted">' + (eps.length ? 'through Episode ' + eps[eps.length - 1] : 'no episodes scored yet') + '</span></div>';
     h += '<div class="card flush"><div class="lb">';
     h += rows.map(function (r) {
       var roster = Engine.roster(L, r.playerId);
-      var pills = roster.draft.map(function (id) { return ava(id, 'xs', v); }).join('') +
-        roster.merge.filter(function (id) { return roster.draft.indexOf(id) === -1; }).map(function (id) { return '<span style="outline:1.5px dashed var(--muted);border-radius:50%;outline-offset:2px;display:inline-block">' + ava(id, 'xs', v) + '</span>'; }).join('');
+      var nameChip = function (id, merge) {
+        var c = CASTBY[id], out = st(v, id).status !== 'active';
+        return '<span class="cchip' + (out ? ' out' : '') + (merge ? ' merge' : '') + '">' + ava(id, 'xs', v) + esc(c.shortName) + '</span>';
+      };
+      var pills = roster.draft.map(function (id) { return nameChip(id, false); }).join('') +
+        roster.merge.filter(function (id) { return roster.draft.indexOf(id) === -1; }).map(function (id) { return nameChip(id, true); }).join('');
       var alive = roster.draft.concat(roster.merge).filter(function (id, i, a) { return a.indexOf(id) === i && st(v, id).status === 'active'; }).length;
       var pct = probs[r.playerId];
       var move = r.move > 0 ? '<span class="move up">▲' + r.move + '</span>' : r.move < 0 ? '<span class="move down">▼' + (-r.move) + '</span>' : '';
       var open = S.openRow === r.playerId;
       return '<div class="lb-row' + (r.rank === 1 && eps.length ? ' first' : '') + (open ? ' open' : '') + '" style="--pc:' + esc(r.color) + '" data-act="lbrow" data-id="' + r.playerId + '">' +
         '<div class="lb-rank">' + r.rank + '</div>' +
-        '<div class="grow"><div class="lb-name">' + esc(r.name) + (isMe(r.playerId) ? '<span class="you">YOU</span>' : '') + ' ' + move + '</div>' +
-        '<div class="lb-team">' + pills + '<span class="tiny dim" style="margin-left:4px">' + alive + ' still in the game</span></div>' +
+        '<div class="grow"><div class="lb-name"><span class="nm">' + esc(r.name) + '</span>' + (isMe(r.playerId) ? '<span class="you">YOU</span>' : '') + ' ' + move + '</div>' +
+        '<div class="lb-team">' + pills + '</div>' +
         (pct != null ? '<div class="winbar" title="Chance to win the league"><i style="width:' + Math.max(1, Math.round(pct * 100)) + '%"></i></div>' : '') + '</div>' +
         '<div class="lb-score"><b>' + r.total + '</b><div class="sub">' + (last != null ? (r.lastEp >= 0 ? '+' : '') + r.lastEp + ' last ep' : '') + '</div>' + (pct != null ? '<div class="sub">' + Math.round(pct * 100) + '% to win</div>' : '') + '</div>' +
         '<div class="lb-detail">' + (open ? rosterTable(v, r.playerId) : '') + '</div></div>';
@@ -1354,7 +1462,7 @@
       } else h += mRow;
     }
     h += '</div></div>';
-    h += '<p class="tiny dim" style="margin:8px 4px 0">Tap anyone to see their castaways’ points week by week. A dashed ring around a photo means that castaway was a merge pick. “% to win” plays out the rest of the season thousands of times with a random order of who goes home. It knows who’s still in the game, not who’s good.</p>';
+    h += '<p class="tiny dim" style="margin:8px 4px 0">Tap anyone to see their castaways’ points week by week. Crossed-out names are out of the game; a dashed outline is a merge pick.' + (showOdds ? ' “% to win” plays out the rest of the season thousands of times with a random order of who goes home.' : ' Win chances appear after Episode ' + (eps.length ? eps[0] + 3 : 5) + '.') + '</p>';
 
     if (eps.length >= 1) {
       h += '<div class="section-title"><h2>The race</h2><span class="muted">total points, week by week</span></div><div class="card">' + raceChart(v) + '</div>';
@@ -1467,7 +1575,7 @@
     });
     var active = list.filter(function (c) { return st(v, c.id).status === 'active'; }).length;
     var h = spoilerBar(v) + '<div class="section-title" style="margin-top:0"><h2>The castaways</h2><span class="muted">' + active + ' of ' + CAST.length + ' still playing</span></div>';
-    h += '<div class="row" style="margin-bottom:14px"><span class="chip"><span class="dot" style="background:var(--savu)"></span>Savu</span><span class="chip"><span class="dot" style="background:var(--toka)"></span>Toka</span><span class="tiny dim">Dots under each name show who drafted them.</span></div>';
+    h += '<div class="row" style="margin-bottom:14px"><span class="chip"><span class="dot" style="background:var(--savu)"></span>Savu</span><span class="chip"><span class="dot" style="background:var(--toka)"></span>Toka</span><span class="tiny dim">Names under each castaway show who drafted them.</span></div>';
     h += '<div class="cast-grid">' + list.map(function (c) {
       var s = st(v, c.id);
       var pts = Engine.castawayTotal(L, v.episodes, c.id);
@@ -1476,7 +1584,7 @@
         '<div class="ph" style="background-image:url(\'' + esc(c.photo) + '\')" data-out="' + (s.status !== 'active' ? 'Out · Ep ' + s.eliminatedEp : '') + '"></div>' +
         (Engine.episodeNumbers(L, v.episodes).length ? '<span class="pts">' + pts + ' pts</span>' : '') +
         '<div class="bar"></div><div class="body"><div class="nm">' + esc(c.shortName) + '</div><div class="meta">' + esc(c.age) + ' · ' + esc(c.occupation) + '</div>' +
-        '<div class="owners">' + owners.map(function (o) { return '<span class="dot" title="' + esc(playerName(L, o.playerId)) + (o.kind === 'merge' ? ' (merge)' : '') + '" style="background:' + esc(playerColor(L, o.playerId)) + '"></span>'; }).join('') + '</div></div></button>';
+        '<div class="owners">' + owners.map(function (o) { return '<span class="oname" style="--pc:' + esc(playerColor(L, o.playerId)) + '">' + esc(firstName(playerName(L, o.playerId))) + (o.kind === 'merge' ? ' (M)' : '') + '</span>'; }).join('') + '</div></div></button>';
     }).join('') + '</div>';
     $('#page-cast').innerHTML = h;
   }
@@ -1965,6 +2073,8 @@
       case 'notify': if (window.Notification) Notification.requestPermission().then(function () { render(); }); return;
       case 'watched': markWatched(Number(t.dataset.ep)); return;
       case 'notes': S.notesEp = Number(t.dataset.ep); render(); return;
+      case 'readmore': S.notesOpen = S.notesOpen || {}; S.notesOpen[t.dataset.ep] = true; render(); return;
+      case 'teamsview': S.teamsView = t.dataset.v; render(); return;
       case 'lbrow': S.openRow = S.openRow === id ? null : id; render(); return;
       case 'series': S.hiddenSeries[id] = !S.hiddenSeries[id]; render(); return;
       case 'p_start':

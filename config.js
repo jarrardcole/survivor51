@@ -1,6 +1,8 @@
 // Where the site talks to its backend.
 // Localhost uses the mock server (dev/mock-server.js); everything else uses the Apps Script web app.
 var LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+// ?api=live on localhost reads the real league (for checking a change against real data).
+if (LOCAL && /[?&]api=live\b/.test(location.search)) LOCAL = false;
 var CONFIG = {
   API_URL: LOCAL ? '/api' : 'https://script.google.com/macros/s/AKfycbzPTwbKWQstw-R9rxot9GI0RvYyuFPGwKm7CcKREoEFZwalVVF_2a0zthfYEMCl9fk/exec',
   SITE_URL: 'https://jarrardcole.github.io/survivor51/',
