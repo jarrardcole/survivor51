@@ -1,7 +1,7 @@
 # Survivor: 🌈 Brooklyn (Survivor 51 Fantasy League)
 
 Status: Active
-Next: Jarrard tests practice mode; then send the one link to the group, set the draft start time (auto-start), give Will the admin link. The Machine is built and put to a league vote (sign-up + homepage).
+Next: Draft done Sep 30 (10 players × 4 rounds, Machine playing). Weekly scheduled task `survivor-51-weekly-scoring` (Thu 6am PT = 9am ET) scores each episode and publishes the Commissioner's Notes. Start the merge draft by hand when the show merges. The Machine is built and put to a league vote (sign-up + homepage).
 
 ## What it is
 Season 51 of the friends' Survivor fantasy league (Season 50 lives in `fun/survivor-draft`, repo `survivor50`).
@@ -64,6 +64,8 @@ Jarrard is remote on draft night, so the draft is fully self-serve: every player
 - Weekly write-ups can needle whoever is losing to it.
 
 ## Weekly routine (after each episode)
+Automated by the scheduled task `survivor-51-weekly-scoring` (~/.claude/scheduled-tasks/). It runs `tools/league-status.js`, writes `notes/episodes/epNN.json`, validates and publishes with `tools/score-episode.js` (drafts instead if sources disagree), then writes and posts `notes/writeups/NN-episode.md`. Manual steps below still work.
+
 1. Admin → Scoring → pick the episode, tick the boxes, mark who went home, Save. (Or Claude posts `save_episode` via the API.)
 2. Write the Commissioner's Notes in `notes/writeups/NN-episode.md`, publish with `tools/post-notes.js`.
 3. The site hides the newest episode's results for 6 days until each viewer taps "I've watched it".
