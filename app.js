@@ -140,7 +140,12 @@
   function errMsg(e) { return ERRORS[e.code] || ('Something went wrong (' + (e.code || e.message) + '). Try again, or tell Will.'); }
 
   // ---------- data intake ----------
+  function cachePayload(res) {
+    try { localStorage.setItem(PFX + 'lastData', JSON.stringify({ data: res.data, serverTime: res.serverTime })); } catch (e) { /* storage full or private mode */ }
+  }
+
   function acceptPayload(res) {
+    if (!res.fromCache) cachePayload(res);
     // serverTime was stamped roughly mid-flight, so add half the round trip.
     if (res.serverTime) S.offset = res.serverTime + (res._rtt || 0) / 2 - Date.now();
     var d = res.data;
@@ -325,6 +330,9 @@
       chip.innerHTML = '<button class="btn sm ghost" data-act="signin">Sign in</button>';
     }
     var needsSetup = S.data && amIn() && S.data.league.draft.status === 'open' && !readiness().ready;
+    var teamsMode = S.data && S.data.league.draft.status === 'complete' && S.data.league.merge.status !== 'live' && S.data.league.merge.status !== 'paused';
+    $$('[data-route="draft"] .lbl').forEach(function (el) { el.textContent = teamsMode ? 'Teams' : 'Draft'; });
+    $$('.tabbar [data-route="draft"] .ti').forEach(function (el) { el.textContent = teamsMode ? '🧑‍🤝‍🧑' : '🔥'; });
     $$('[data-route="draft"]').forEach(function (a) { a.classList.toggle('nudge', !!needsSetup); });
     var lk = liveKind();
     $$('[data-route="draft"]').forEach(function (a) { a.classList.toggle('live', !!lk && S.data && S.data[lk === 'merge' ? 'league' : 'league'][lk === 'merge' ? 'merge' : 'draft'].status === 'live'); });
@@ -592,7 +600,9 @@
   function render() {
     renderChrome();
     if (!S.data) {
-      $('#page-' + S.route).innerHTML = '<div class="center muted" style="padding:80px 0"><div class="brand-flame" style="margin:0 auto 14px;width:34px;height:42px"></div>Lighting the torches…</div>';
+      var slow = S.bootAt && Date.now() - S.bootAt > 5000;
+      $('#page-' + S.route).innerHTML = '<div class="center muted" style="padding:80px 0"><div class="brand-flame" style="margin:0 auto 14px;width:34px;height:42px"></div>' +
+        (slow ? 'Still connecting to the league. Google’s servers can be slow to wake up.<div style="margin-top:14px"><button class="btn sm" data-act="retry">Try again</button></div>' : 'Loading the league…') + '</div>';
       return;
     }
     if (S.dragging) return;
@@ -645,20 +655,24 @@
       var next = nextEpisode();
       var rows = Engine.standings(L, v.episodes);
       var scored = Engine.episodeNumbers(L, v.episodes);
-      h += '<div class="eyebrow">Season 51 · ' + (scored.length ? 'After Episode ' + scored[scored.length - 1] : 'Tribes are set') + '</div>';
-      if (rows.length && scored.length && rows[0].total > 0) {
+      h += '<div class="eyebrow">Season 51 · ' + (v.hidden ? 'Episode ' + v.hidden + ' is in' : scored.length ? 'After Episode ' + scored[scored.length - 1] : 'Tribes are set') + '</div>';
+      if (v.hidden) {
+        h += '<h1>Episode ' + v.hidden + ' <em>results are in</em></h1><p>Watched it? Tap below to see who went home and the new standings.</p>';
+      } else if (rows.length && scored.length && rows[0].total > 0) {
         var leaders = rows.filter(function (r) { return r.rank === 1; });
         h += '<h1><em>' + esc(leaders.map(function (r) { return r.name.split(' ')[0]; }).join(' & ')) + '</em> ' + (leaders.length > 1 ? 'share' : 'leads') + ' the league</h1>' +
           '<p>' + rows[0].total + ' points' + (rows[1] && rows[1].rank !== 1 ? ', ' + (rows[0].total - rows[1].total) + ' ahead of ' + esc(rows[1].name) : '') + '. ' + (next ? 'Episode ' + next.ep + ' is next.' : '') + '</p>';
       } else {
-        h += '<h1>The tribes <em>have been drafted</em></h1><p>Scoring starts with Episode 3. ' + (next ? 'Next up: Episode ' + next.ep + '.' : '') + '</p>';
+        h += scored.length
+          ? '<h1>Still <em>all square</em></h1><p>Nobody has scored yet after Episode ' + scored[scored.length - 1] + '. ' + (next ? 'Episode ' + next.ep + ' is next.' : '') + '</p>'
+          : '<h1>The tribes <em>are set</em></h1><p>Points start with Episode ' + L.settings.scoringStartEp + '. ' + (next ? 'Next up: Episode ' + next.ep + '.' : '') + '</p>';
       }
-      if (next) h += '<div class="countdown" data-countdown="' + next.at + '"></div>';
-      h += '<div class="row"><a class="btn primary" href="#standings">Standings</a><a class="btn" href="#draft">See every pick</a></div>';
+      if (next && !v.hidden) h += '<div class="countdown" data-countdown="' + next.at + '"></div>';
+      h += '<div class="row">' + (v.hidden ? '<button class="btn primary" data-act="watched" data-ep="' + Math.max.apply(null, Object.keys(S.data.episodes).map(Number)) + '">I’ve watched it. Show me</button>' : '<a class="btn primary" href="#standings">Standings</a>') + '<a class="btn" href="#draft">Teams</a></div>';
     }
     h += '</div>';
 
-    h += spoilerBar(v);
+    if (L.draft.status !== 'complete') h += spoilerBar(v);
     // The one thing a joined player still needs to do comes right after the hero.
     if (phase === 'open' && amIn()) h += '<div style="margin-top:18px">' + readinessCard(true) + '</div>';
     if (PRACTICE) h += '<div style="margin-top:18px">' + practiceLab() + '</div>';
@@ -755,6 +769,9 @@
 
   function miniStandings(v) {
     var L = v.league;
+    if (v.hidden) {
+      return '<div class="card"><div class="row"><h3 class="grow" style="margin:0">Standings</h3><span class="chip">🙈 hidden</span></div><p class="small muted" style="margin:8px 0 0">Hidden until you’ve watched Episode ' + v.hidden + '.</p></div>';
+    }
     var rows = Engine.standings(L, v.episodes);
     var scored = Engine.episodeNumbers(L, v.episodes).length > 0;
     var h = '<div class="card flush"><div class="card-head"><h3 class="grow">Standings</h3><a class="small" href="#standings">Full standings →</a></div><div class="lb">';
@@ -1275,8 +1292,7 @@
 
   function draftComplete(v, kind) {
     var L = v.league;
-    var h = '<div class="hero" style="margin-bottom:16px"><div class="eyebrow">' + (kind === 'merge' ? 'Merge draft complete' : 'Draft complete') + '</div><h1>The tribes <em>have spoken</em></h1>' +
-      '<p>' + (kind === 'merge' ? 'Merge picks score from Episode ' + L.merge.startEp + ' on.' : plural(L.draft.picks.filter(function (p) { return p.castawayId; }).length, 'pick') + ' in ' + plural(L.draft.rounds, 'round') + '. Scoring starts with Episode ' + L.settings.scoringStartEp + '.') + '</p></div>';
+    var h = '<div class="section-title" style="margin-top:0"><h2>' + (kind === 'merge' ? 'Merge picks' : 'Teams') + '</h2><span class="muted">' + (kind === 'merge' ? 'merge picks score from Episode ' + L.merge.startEp + ' on' : 'every pick from draft night') + '</span></div>';
     h += bigBoard(v, kind);
     if (kind === 'main' && machineOn(L)) h += '<div style="margin-top:16px">' + machineCard(v) + '</div>';
     if (kind === 'main' && L.winnerBets) {
@@ -1790,6 +1806,7 @@
 
     switch (act) {
       case 'close': closeSheet(); return;
+      case 'retry': S.failures = 0; poll(); return;
       case 'signin': e.preventDefault(); signinSheet(); return;
       case 'signin_go': {
         var em = $('#siEmail').value.trim();
@@ -2109,6 +2126,13 @@
   // BOOT
   // =============================================================
   function boot() {
+    S.bootAt = Date.now();
+    // Show the last data this device saw right away; fresh data replaces it in a second or two.
+    try {
+      var last = JSON.parse(localStorage.getItem(PFX + 'lastData') || 'null');
+      if (last && last.data && last.data.league) acceptPayload({ data: last.data, serverTime: null, fromCache: true });
+    } catch (e) { /* ignore */ }
+    setTimeout(function () { if (!S.data) render(); }, 5200);   // switch to the "still connecting" message
     route();
     poll();
     if (S.adminKey) {
