@@ -1,0 +1,18 @@
+{ "ep": 3, "title": "What I'm Smellin' Is Stinky",
+  "scores": {
+    "brady": { "survives": true }, "kilby": { "survives": true }, "jelly": { "survives": true },
+    "jenna": { "survives": true }, "lewis": { "survives": true }, "mike": { "survives": true },
+    "thien-an": { "survives": true },
+    "devin": { "survives": true, "findAdvantage": true },
+    "maggie": { "survives": true, "findAdvantage": true },
+    "carter": { "survives": true, "findIdol": true },
+    "rob": { "quit": true }
+  },
+  "eliminated": [ { "id": "patt", "type": "voted" }, { "id": "rob", "type": "quit" } ],
+  "notes": "Savu won immunity; Toka (11, incl. Carter after his accidental mutiny) went to Tribal. Patt out 6-5 over Kilby; no idols/advantages played. Rob quit (medical found only a minor cut) and gave his idol to Carter before leaving (Carter: came to possess an idol, +3). Extra Votes: Devin (found with Sharonda at the well, Devin holds it) and Maggie (Brady found it, gave it to her).",
+  "sources": [
+    "https://en.wikipedia.org/wiki/Survivor_51",
+    "https://insidesurvivor.com/survivor-51-episode-3-recap-the-mutineers-dilemma-61828",
+    "https://www.tvline.com/2280490/survivor-51-recap-episode-3-rob-quits-patt-voted-out/",
+    "https://www.yahoo.com/entertainment/tv/articles/survivor-51-episode-3-recap-145148761.html"
+  ] }
