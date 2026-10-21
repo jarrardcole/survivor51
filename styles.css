@@ -663,3 +663,9 @@ body.is-host .bc:hover:not(.gone):not(.out) { border-color: var(--flame); box-sh
 .sm-total { font-family: var(--display); font-weight: 400; font-size: 18px; color: var(--text); }
 .sm-panel.mine .sm-name { color: var(--text); }
 .sm-panel.mine { outline: 1px solid var(--line-2); outline-offset: 4px; border-radius: 6px; }
+
+.race-card { padding: 14px 12px 10px; }
+.race-wrap svg { display: block; width: 100%; height: auto; }
+
+.ep-table td, .ep-table th { padding: 7px 6px; }
+.ep-table .ep-name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }

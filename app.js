@@ -1489,7 +1489,7 @@
     h += '<p class="tiny dim" style="margin:8px 4px 0">Tap anyone to see their castaways’ points week by week. Crossed-out names are out of the game; a dashed outline is a merge pick.' + (showOdds ? ' “% to win” plays out the rest of the season thousands of times with a random order of who goes home.' : ' Win chances appear after Episode ' + (eps.length ? eps[0] + 3 : 5) + '.') + '</p>';
 
     if (eps.length >= 1) {
-      h += '<div class="section-title"><h2>The race</h2><span class="muted">total points, week by week</span></div>' + raceMultiples(v);
+      h += '<div class="section-title"><h2>The race</h2><span class="muted">tap a name to highlight</span></div><div class="card race-card">' + raceChart(v) + '</div>';
       h += '<div class="section-title"><h2>By episode</h2></div><div class="card flush" style="overflow-x:auto">' + episodeTable(v, rows, eps) + '</div>';
     }
     el.innerHTML = h;
@@ -1534,13 +1534,20 @@
     return h;
   }
 
+  // Fits the screen: short names, and on phones only the latest few episodes.
   function episodeTable(v, rows, eps) {
     var L = v.league;
-    var h = '<table class="mini-table"><thead><tr><th>Player</th>' + eps.map(function (e) { return '<th class="num">Ep ' + e + '</th>'; }).join('') + '<th class="num">Total</th></tr></thead><tbody>';
+    var narrow = window.innerWidth < 760;
+    var fit = narrow ? 4 : 8;
+    var shown = eps.slice(-fit);
+    var hiddenCount = eps.length - shown.length;
+    eps = shown;
+    var h = (hiddenCount ? '<p class="tiny dim" style="margin:10px 14px 0">Showing the last ' + shown.length + ' episodes. Totals include all ' + (hiddenCount + shown.length) + '.</p>' : '') +
+      '<table class="mini-table ep-table"><thead><tr><th>Player</th>' + eps.map(function (e) { return '<th class="num">E' + e + '</th>'; }).join('') + '<th class="num">Total</th></tr></thead><tbody>';
     rows.forEach(function (r) {
       var per = eps.map(function (e) { return Engine.playerEpisodePoints(L, v.episodes, r.playerId, e); });
       var best = eps.map(function (e) { return Math.max.apply(null, rows.map(function (x) { return Engine.playerEpisodePoints(L, v.episodes, x.playerId, e); })); });
-      h += '<tr><td class="nowrap"><span class="dot" style="background:' + esc(r.color) + ';margin-right:6px"></span>' + esc(r.name) + '</td>' +
+      h += '<tr><td class="nowrap ep-name"><span class="dot" style="background:' + esc(r.color) + ';margin-right:6px"></span>' + esc(narrow ? firstName(r.name) : shortName(r.name)) + '</td>' +
         per.map(function (p, i) { return '<td class="num" style="' + (p === best[i] && p > 0 ? 'color:var(--gold);font-weight:800' : '') + '">' + p + '</td>'; }).join('') +
         '<td class="num"><b>' + r.total + '</b></td></tr>';
     });
@@ -1583,45 +1590,65 @@
       '<p class="tiny dim" style="margin:10px 0 0">Each panel is one player in color, with everyone else in gray. Every panel uses the same scale: ' + min + ' to ' + max + ' points, Episode ' + eps[0] + (eps.length > 1 ? ' to ' + eps[eps.length - 1] : '') + '. Hover or long-press a panel for week-by-week totals.</p></div>';
   }
 
+  function chartName(n) { var f = firstName(n); return f.length > 9 ? f.slice(0, 7).replace(/[\s-]+$/, '') + '…' : f; }
+
+  // One chart that fits any screen: sized to the container (no sideways scroll), every line
+  // labeled at its end with collision nudging, and tap-to-highlight (default: your own line).
   function raceChart(v) {
     var series = Engine.raceSeries(v.league, v.episodes);
     if (!series.length || !series[0].points.length) return '';
     if (machineOn(v.league)) {
       var run = 0;
-      series.push({ playerId: '__machine', name: '🤖 Machine', color: '#9FB4C7', machine: true, points: series[0].points.map(function (p) { run += Engine.machineEpisodePoints(v.league, v.episodes, p.ep); return { ep: p.ep, total: run }; }) });
+      series.push({ playerId: '__machine', name: 'The Machine', color: '#9FB4C7', machine: true, points: series[0].points.map(function (p) { run += Engine.machineEpisodePoints(v.league, v.episodes, p.ep); return { ep: p.ep, total: run }; }) });
     }
-    var W = 760, H = 320, pl = 36, pr = 96, pt = 14, pb = 28;
+    var focus = S.raceFocus !== undefined ? S.raceFocus : (S.me && amIn() ? S.me.id : null);
+    var cw = Math.min(760, Math.max(300, (document.getElementById('page-standings').clientWidth || window.innerWidth) - 36));
+    var W = cw, H = Math.round(Math.max(240, Math.min(340, cw * 0.62)));
+    var labelW = W < 420 ? 84 : 110, pl = 26, pr = labelW, pt = 12, pb = 22;
     var eps = series[0].points.map(function (p) { return p.ep; });
-    var max = Math.max(10, Math.max.apply(null, series.map(function (s) { return s.points[s.points.length - 1].total; })));
-    var min = Math.min(0, Math.min.apply(null, series.map(function (s) { return Math.min.apply(null, s.points.map(function (p) { return p.total; })); })));
+    var all = [].concat.apply([], series.map(function (s) { return s.points.map(function (p) { return p.total; }); }));
+    var max = Math.max(5, Math.max.apply(null, all)), min = Math.min(0, Math.min.apply(null, all));
     var x = function (i) { return pl + (eps.length === 1 ? (W - pl - pr) / 2 : i * (W - pl - pr) / (eps.length - 1)); };
     var y = function (val) { return pt + (1 - (val - min) / (max - min)) * (H - pt - pb); };
-    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Cumulative points by episode">';
-    var ticks = 4;
-    for (var t = 0; t <= ticks; t++) {
-      var val = Math.round(min + (max - min) * t / ticks);
-      svg += '<line x1="' + pl + '" x2="' + (W - pr) + '" y1="' + y(val) + '" y2="' + y(val) + '" stroke="rgba(255,228,196,.07)"/><text x="' + (pl - 8) + '" y="' + (y(val) + 4) + '" fill="#7A6C5F" font-size="11" text-anchor="end">' + val + '</text>';
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="Total points by episode for every player">';
+    // Recessive axis: a few light reference lines, numbers in muted ink.
+    var step = Math.max(5, Math.ceil((max - min) / 4 / 5) * 5);
+    for (var t = Math.ceil(min / step) * step; t <= max; t += step) {
+      svg += '<line x1="' + pl + '" x2="' + (W - pr) + '" y1="' + y(t) + '" y2="' + y(t) + '" stroke="rgba(255,228,196,' + (t === 0 ? '.22' : '.07') + ')"/>' +
+        '<text x="' + (pl - 6) + '" y="' + (y(t) + 4) + '" fill="#7A6C5F" font-size="11" text-anchor="end">' + t + '</text>';
     }
-    eps.forEach(function (e, i) { svg += '<text x="' + x(i) + '" y="' + (H - 8) + '" fill="#7A6C5F" font-size="11" text-anchor="middle">Ep ' + e + '</text>'; });
-    // Label collision: nudge end labels apart.
-    var ends = series.filter(function (s) { return !S.hiddenSeries[s.playerId]; }).map(function (s) { return { s: s, y: y(s.points[s.points.length - 1].total) }; }).sort(function (a, b) { return a.y - b.y; });
-    for (var i2 = 1; i2 < ends.length; i2++) if (ends[i2].y - ends[i2 - 1].y < 13) ends[i2].y = ends[i2 - 1].y + 13;
-    series.forEach(function (s) {
-      if (S.hiddenSeries[s.playerId]) return;
-      var me = isMe(s.playerId);
-      var pts = s.points.map(function (p, i) { return x(i) + ',' + y(p.total); }).join(' ');
-      svg += '<polyline points="' + pts + '" fill="none" stroke="' + esc(s.color) + '" stroke-width="' + (me ? 3.5 : 2.25) + '" stroke-linejoin="round" stroke-linecap="round" opacity="' + (me ? 1 : 0.85) + '"' + (s.machine ? ' stroke-dasharray="6 5"' : '') + '/>';
-      s.points.forEach(function (p, i) { svg += '<circle cx="' + x(i) + '" cy="' + y(p.total) + '" r="' + (me ? 4 : 3) + '" fill="' + esc(s.color) + '"><title>' + esc(s.name) + ' · Ep ' + p.ep + ': ' + p.total + '</title></circle>'; });
+    eps.forEach(function (e, i) { svg += '<text x="' + x(i) + '" y="' + (H - 6) + '" fill="#7A6C5F" font-size="11" text-anchor="middle">Ep ' + e + '</text>'; });
+    // Draw faded lines first, the highlighted one last (on top).
+    var ordered = series.slice().sort(function (a, b) { return (a.playerId === focus) - (b.playerId === focus); });
+    ordered.forEach(function (s) {
+      var on = !focus || s.playerId === focus;
+      var pts = s.points.map(function (p, i) { return x(i).toFixed(1) + ',' + y(p.total).toFixed(1); }).join(' ');
+      svg += '<polyline points="' + pts + '" fill="none" stroke="' + esc(s.color) + '" stroke-width="' + (focus && on ? 3 : 2) + '" stroke-linejoin="round" stroke-linecap="round" opacity="' + (on ? 1 : 0.18) + '"' + (s.machine ? ' stroke-dasharray="5 4"' : '') + '/>';
+      s.points.forEach(function (p, i) {
+        svg += '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(p.total).toFixed(1) + '" r="' + (focus && on ? 4 : 2.5) + '" fill="' + esc(s.color) + '" stroke="#1B1511" stroke-width="1.5" opacity="' + (on ? 1 : 0.18) + '"><title>' + esc(s.name) + ' · Ep ' + p.ep + ': ' + p.total + '</title></circle>';
+      });
     });
+    // End labels, nudged apart so none overlap; each is a tap target.
+    var gap = 13;
+    var ends = series.map(function (s) { return { s: s, y: y(s.points[s.points.length - 1].total), total: s.points[s.points.length - 1].total }; })
+      .sort(function (a, b) { return a.y - b.y || b.total - a.total; });
+    for (var i = 1; i < ends.length; i++) if (ends[i].y - ends[i - 1].y < gap) ends[i].y = ends[i - 1].y + gap;
+    var overflow = ends.length ? ends[ends.length - 1].y - (H - pb + 4) : 0;
+    if (overflow > 0) ends.forEach(function (e) { e.y -= overflow; });
+    for (var j = ends.length - 2; j >= 0; j--) if (ends[j + 1].y - ends[j].y < gap) ends[j].y = ends[j + 1].y - gap;
     ends.forEach(function (e) {
-      svg += '<text x="' + (W - pr + 8) + '" y="' + (e.y + 4) + '" fill="' + esc(e.s.color) + '" font-size="12" font-weight="700">' + esc(e.s.name.split(' ')[0]) + ' ' + e.s.points[e.s.points.length - 1].total + '</text>';
+      var on = !focus || e.s.playerId === focus;
+      var lx = x(eps.length - 1) + 8;
+      svg += '<g class="race-label" data-act="racefocus" data-id="' + e.s.playerId + '" opacity="' + (on ? 1 : 0.45) + '" style="cursor:pointer">' +
+        '<rect x="' + (lx - 4) + '" y="' + (e.y - 9) + '" width="' + (labelW - 4) + '" height="' + gap + '" fill="transparent"/>' +
+        '<circle cx="' + lx + '" cy="' + (e.y - 3) + '" r="3.5" fill="' + esc(e.s.color) + '"/>' +
+        '<text x="' + (lx + 7) + '" y="' + (e.y + 1) + '" fill="#EADFCF" font-size="11.5" font-weight="' + (focus && on ? 800 : 600) + '">' + esc(chartName(e.s.name)) + ' ' + e.total + '</text></g>';
     });
     svg += '</svg>';
-    var legend = '<div class="legend">' + series.map(function (s) {
-      return '<span class="' + (S.hiddenSeries[s.playerId] ? 'off' : '') + '" data-act="series" data-id="' + s.playerId + '"><span class="dot" style="background:' + esc(s.color) + '"></span>' + esc(s.name) + '</span>';
-    }).join('') + '</div>';
-    return '<div class="chart-wrap">' + svg + '</div>' + legend;
+    var note = focus ? '<button class="btn sm ghost" data-act="racefocus" data-id="">Show everyone equally</button>' : '';
+    return '<div class="race-wrap">' + svg + '</div>' + note;
   }
+
 
   // ---------- CAST ----------
   function renderCast() {
@@ -2139,6 +2166,7 @@
       case 'teamsview': S.teamsView = t.dataset.v; render(); return;
       case 'lbrow': S.openRow = S.openRow === id ? null : id; render(); return;
       case 'series': S.hiddenSeries[id] = !S.hiddenSeries[id]; render(); return;
+      case 'racefocus': S.raceFocus = id ? (S.raceFocus === id ? null : id) : null; render(); return;
       case 'p_start':
         t.disabled = true; t.textContent = 'Setting up bots…';
         apiPost({ action: 'practice', op: 'start', bots: 8, clockSec: 45, botSec: 3 }).then(function (res) {
