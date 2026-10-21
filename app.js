@@ -146,6 +146,10 @@
 
   function acceptPayload(res) {
     if (!res.fromCache) cachePayload(res);
+    // Saved data from an earlier visit can be days old. The first fresh load after it just
+    // catches up quietly: no pick announcements or "new picks" messages for old news.
+    var catchUp = !res.fromCache && S.startedFromCache;
+    if (res.fromCache) S.startedFromCache = true; else S.startedFromCache = false;
     // serverTime was stamped roughly mid-flight, so add half the round trip.
     if (res.serverTime) S.offset = res.serverTime + (res._rtt || 0) / 2 - Date.now();
     var d = res.data;
@@ -158,7 +162,16 @@
       var p = Engine.playerById(d.league, S.me.id);
       if (p && !p.removed) { S.me.name = p.name; S.me.color = p.color; }
     }
-    detectDraftEvents(prev);
+    if (catchUp) {
+      var Lc = S.data.league;
+      S.seenPicks = { main: Lc.draft.picks.length, merge: Lc.merge.picks.length };
+      S.seenStatus = { main: Lc.draft.status, merge: Lc.merge.status };
+      S.seenMachine = (Lc.machine && Lc.machine.enabled) ? Lc.machine.picks.length : 0;
+      S.revealQueue = [];
+      checkMyTurn();
+    } else {
+      detectDraftEvents(prev);
+    }
     return changed;
   }
   function acceptLeague(league) {
@@ -733,7 +746,18 @@
 
   // Short display names so long team names never break a layout.
   function shortName(n) { n = String(n || ''); return n.length > 22 ? n.slice(0, 20).trim() + '…' : n; }
-  function firstName(n) { var f = String(n || '').split(/[\s-]/)[0]; return f.length > 14 ? f.slice(0, 13) + '…' : f; }
+  // First name when it's unique in the league; otherwise add a last initial ("Matt J."),
+  // or fall back to the full name (trimmed) when there's no usable last name.
+  function firstName(n) {
+    n = String(n || '');
+    if (n === 'The Machine') return 'Machine';
+    var parts = n.split(/[\s-]+/), f = parts[0];
+    var others = S.data ? S.data.league.players.filter(function (p) { return !p.removed && p.name !== n && p.name.split(/[\s-]+/)[0].toLowerCase() === f.toLowerCase(); }) : [];
+    if (!others.length) return f.length > 14 ? f.slice(0, 13) + '…' : f;
+    var last = parts[1];
+    if (last && /^[A-Za-z]/.test(last) && parts.length === 2) return f + ' ' + last.charAt(0).toUpperCase() + '.';
+    return shortName(n);
+  }
 
   // The question everyone opens the site with: how am I doing?
   function youCard(v) {
@@ -1465,7 +1489,7 @@
     h += '<p class="tiny dim" style="margin:8px 4px 0">Tap anyone to see their castaways’ points week by week. Crossed-out names are out of the game; a dashed outline is a merge pick.' + (showOdds ? ' “% to win” plays out the rest of the season thousands of times with a random order of who goes home.' : ' Win chances appear after Episode ' + (eps.length ? eps[0] + 3 : 5) + '.') + '</p>';
 
     if (eps.length >= 1) {
-      h += '<div class="section-title"><h2>The race</h2><span class="muted">total points, week by week</span></div><div class="card">' + raceChart(v) + '</div>';
+      h += '<div class="section-title"><h2>The race</h2><span class="muted">total points, week by week</span></div>' + raceMultiples(v);
       h += '<div class="section-title"><h2>By episode</h2></div><div class="card flush" style="overflow-x:auto">' + episodeTable(v, rows, eps) + '</div>';
     }
     el.innerHTML = h;
@@ -1521,6 +1545,42 @@
         '<td class="num"><b>' + r.total + '</b></td></tr>';
     });
     return h + '</tbody></table>';
+  }
+
+  // Small multiples (Tufte): one panel per player, same scale everywhere. Each panel draws
+  // that player's line in their color over everyone else in faint gray, so the whole race
+  // fits a phone screen and every line is identifiable without a legend.
+  function raceMultiples(v) {
+    var series = Engine.raceSeries(v.league, v.episodes);
+    if (!series.length || !series[0].points.length) return '';
+    if (machineOn(v.league)) {
+      var run = 0;
+      series.push({ playerId: '__machine', name: 'The Machine', color: '#9FB4C7', machine: true, points: series[0].points.map(function (p) { run += Engine.machineEpisodePoints(v.league, v.episodes, p.ep); return { ep: p.ep, total: run }; }) });
+    }
+    var eps = series[0].points.map(function (p) { return p.ep; });
+    var all = [].concat.apply([], series.map(function (s) { return s.points.map(function (p) { return p.total; }); }));
+    var max = Math.max(5, Math.max.apply(null, all)), min = Math.min(0, Math.min.apply(null, all));
+    var W = 160, H = 56, px = 4, py = 6;
+    var x = function (i) { return eps.length === 1 ? W / 2 : px + i * (W - 2 * px) / (eps.length - 1); };
+    var y = function (val) { return py + (1 - (val - min) / (max - min)) * (H - 2 * py); };
+    var path = function (s) { return s.points.map(function (p, i) { return (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(p.total).toFixed(1); }).join(' '); };
+    var ranks = {};
+    Engine.standings(v.league, v.episodes).forEach(function (r) { ranks[r.playerId] = r.rank; });
+    var order = series.slice().sort(function (a, b) { return b.points[b.points.length - 1].total - a.points[a.points.length - 1].total; });
+    var grey = series.map(function (s) { return '<path d="' + path(s) + '" fill="none" stroke="rgba(255,228,196,.16)" stroke-width="1"/>'; }).join('');
+    var zero = min < 0 ? '<line x1="0" x2="' + W + '" y1="' + y(0).toFixed(1) + '" y2="' + y(0).toFixed(1) + '" stroke="rgba(255,228,196,.25)" stroke-width="1" stroke-dasharray="2 3"/>' : '';
+    var panels = order.map(function (s) {
+      var lastP = s.points[s.points.length - 1];
+      var tip = s.points.map(function (p) { return 'Ep ' + p.ep + ': ' + p.total; }).join(' · ');
+      return '<div class="sm-panel' + (isMe(s.playerId) ? ' mine' : '') + (s.machine ? ' machine' : '') + '" title="' + esc(s.name + ' — ' + tip) + '">' +
+        '<div class="sm-head"><span class="sm-rank">' + (s.machine ? '🤖' : ranks[s.playerId]) + '</span><span class="sm-name">' + esc(firstName(s.name)) + '</span><b class="sm-total">' + lastP.total + '</b></div>' +
+        '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(s.name + ': ' + tip) + '">' + zero + grey +
+        '<path d="' + path(s) + '" fill="none" stroke="' + esc(s.color) + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"' + (s.machine ? ' stroke-dasharray="4 3"' : '') + '/>' +
+        '<circle cx="' + x(eps.length - 1).toFixed(1) + '" cy="' + y(lastP.total).toFixed(1) + '" r="3.5" fill="' + esc(s.color) + '" stroke="#1B1511" stroke-width="2"/>' +
+        '</svg></div>';
+    }).join('');
+    return '<div class="card"><div class="sm-grid">' + panels + '</div>' +
+      '<p class="tiny dim" style="margin:10px 0 0">Each panel is one player in color, with everyone else in gray. Every panel uses the same scale: ' + min + ' to ' + max + ' points, Episode ' + eps[0] + (eps.length > 1 ? ' to ' + eps[eps.length - 1] : '') + '. Hover or long-press a panel for week-by-week totals.</p></div>';
   }
 
   function raceChart(v) {

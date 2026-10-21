@@ -651,3 +651,15 @@ body.is-host .bc:hover:not(.gone):not(.out) { border-color: var(--flame); box-sh
 .trow { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-top: 1px solid var(--line); font-size: 14px; font-weight: 600; cursor: pointer; }
 .trow.out { opacity: .6; }
 @media (max-width: 760px) { .machine-row .lb-name .chip { display: none; } }
+
+/* ---------- The race: small multiples ---------- */
+.sm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px 14px; }
+@media (max-width: 420px) { .sm-grid { grid-template-columns: 1fr 1fr; gap: 10px; } }
+.sm-panel { position: relative; min-width: 0; }
+.sm-panel svg { display: block; width: 100%; height: auto; overflow: visible; }
+.sm-head { display: flex; align-items: baseline; gap: 6px; font-size: 12.5px; margin-bottom: 2px; }
+.sm-rank { color: var(--dim); font-weight: 800; width: 16px; flex: none; }
+.sm-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-weight: 700; }
+.sm-total { font-family: var(--display); font-weight: 400; font-size: 18px; color: var(--text); }
+.sm-panel.mine .sm-name { color: var(--text); }
+.sm-panel.mine { outline: 1px solid var(--line-2); outline-offset: 4px; border-radius: 6px; }
