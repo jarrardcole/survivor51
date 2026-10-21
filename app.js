@@ -1575,7 +1575,9 @@
     });
     var active = list.filter(function (c) { return st(v, c.id).status === 'active'; }).length;
     var h = spoilerBar(v) + '<div class="section-title" style="margin-top:0"><h2>The castaways</h2><span class="muted">' + active + ' of ' + CAST.length + ' still playing</span></div>';
-    h += '<div class="row" style="margin-bottom:14px"><span class="chip"><span class="dot" style="background:var(--savu)"></span>Savu</span><span class="chip"><span class="dot" style="background:var(--toka)"></span>Toka</span><span class="tiny dim">Names under each castaway show who drafted them.</span></div>';
+    var tribesNow = [];
+    CAST.forEach(function (c) { var t = st(v, c.id); if (t.status === 'active' && tribesNow.indexOf(t.tribe) === -1) tribesNow.push(t.tribe); });
+    h += '<div class="row" style="margin-bottom:14px">' + tribesNow.map(function (t) { return '<span class="chip"><span class="dot" style="background:var(--' + t.toLowerCase() + ', #999)"></span>' + esc(t) + '</span>'; }).join('') + '<span class="tiny dim">Names under each castaway show who drafted them.</span></div>';
     h += '<div class="cast-grid">' + list.map(function (c) {
       var s = st(v, c.id);
       var pts = Engine.castawayTotal(L, v.episodes, c.id);

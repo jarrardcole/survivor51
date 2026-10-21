@@ -1,0 +1,13 @@
+{ "ep": 4, "title": "That's the Magic of Survivor",
+  "scores": {
+    "alexis": { "survives": true }, "devin": { "survives": true },
+    "jelly": { "survives": true }, "ori": { "survives": true }
+  },
+  "eliminated": [ { "id": "jenna", "type": "voted" } ],
+  "notes": "Day 8 swap into three tribes. Savu: Alexis, Devin, Jelly, Jenna, Ori. Toka: Brady, Carter, Kristin, Maggie, Mike, Thien An. Dina (new, red): Cristian, Eric, Kilby, Lewis, Linnea, Sharonda. Dina and Toka won immunity; Savu went to Tribal; Jenna out 4-1. No idols/advantages found or played (Jelly and Carter still hold theirs).",
+  "sources": [
+    "https://en.wikipedia.org/wiki/Survivor_51",
+    "https://www.tvline.com/2286901/survivor-51-recap-episode-4-jenna-voted-out-tribe-swap/",
+    "https://www.goldderby.com/reality-tv/2026/survivor-51-episode-4-recap-thats-the-magic-of-survivor/",
+    "https://www.paramountplus.com/sneak-peak/survivor-season-51-episode-4-recap/"
+  ] }
