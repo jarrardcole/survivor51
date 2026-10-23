@@ -1,0 +1,17 @@
+{ "ep": 5, "title": "Not Here to Get a Pedicure",
+  "scores": {
+    "devin": { "survives": true }, "jelly": { "survives": true }, "ori": { "survives": true },
+    "cristian": { "survives": true }, "eric": { "survives": true }, "sharonda": { "survives": true },
+    "kilby": { "survives": true, "findAdvantage": true, "playAdvantage": true },
+    "lewis": { "survives": true, "findAdvantage": true, "playAdvantage": true },
+    "maggie": { "findAdvantage": true }
+  },
+  "eliminated": [ { "id": "alexis", "type": "voted" }, { "id": "linnea", "type": "voted" } ],
+  "notes": "Double Tribal. Toka won immunity (+ pastry reward). Savu: Alexis out 3-1 (her vote on Devin); Devin revealed but did not play his extra vote; Jelly still holds her idol. Maggie was randomly picked from Toka volunteers to visit Dina, received a new Extra Vote there (+3, same as Ep 3 gift precedent) and gave one extra vote each to Kilby and Lewis to target Linnea; she stays on Toka (Wikipedia: Toka/Toka/Toka). Dina: Kilby and Lewis each received (+3) and cast their extra vote (+4, with effect: turned a 4-2 Lewis loss into a 4-4 tie). Linnea 4 / Lewis 4, revote deadlocked, Cristian/Eric/Kilby/Sharonda agreed unanimously on Linnea (no rocks). Lewis's 'Blood Ring' was a bluff. No idols found or played. No swap or merge. Carter still holds Rob's old idol.",
+  "sources": [
+    "https://en.wikipedia.org/wiki/Survivor_51",
+    "https://www.paramountplus.com/sneak-peak/survivor-season-51-episode-5-recap/",
+    "https://www.tvline.com/2293412/survivor-51-recap-episode-5-alexis-linnea-voted-out-draw-rocks/",
+    "https://www.filmifeed.com/survivor-51-episode-5-recap-alexis-linnea-deadlock/",
+    "https://www.tvinsider.com/1298773/survivor-51-episode-5-recap-rock-draw-double-elimination-voted-out-jeff-probst/"
+  ] }
