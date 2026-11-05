@@ -74,3 +74,9 @@ Automated by the scheduled task `survivor-51-weekly-scoring` (~/.claude/schedule
 1. `tools/build.sh` → paste `apps-script/Code.gs` into a new Apps Script bound to a new Sheet → run `setup` → Deploy as web app (Execute as me, Anyone). **Select "New version" by accessibility ref, not pixel** (Season 50 lesson).
 2. Put the `/exec` URL in `config.js`, commit, push to `main`; Pages serves from the repo root.
 3. Smoke test: `GET ?action=ping`, join with a test email, remove it in Admin → Players.
+
+## Scoring rulings (keep consistent)
+- **Quit = −15** (S50 rule "Non-medical leaves game"). Applied to Rob, Ep 3.
+- **Inherited/gifted idol = findIdol +3** for the receiver ("takes ultimate possession"), first time only. Carter, Ep 3 (Rob's idol). Same logic for advantages handed over (Maggie, Ep 3).
+- **Kristin's tethered idol (Ep 6):** Kristin +3 for getting it. Sharonda holds it only as a custodian (can't play it) → no points. If Kristin plays it to save Sharonda and it negates votes → Kristin +8. If Sharonda is eliminated it becomes Kristin's regular idol → no second +3. If Kristin is voted out holding it → −5.
+- **Merge (Ep 7, tribe Tovuto):** makesMerge +4 for all 13 incl. that night's boot.
