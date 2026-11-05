@@ -1,0 +1,13 @@
+{ "ep": 6, "title": "I Love Crying",
+  "scores": {
+    "devin": { "survives": true },
+    "jelly": { "survives": true },
+    "kristin": { "findIdol": true }
+  },
+  "eliminated": [ { "id": "ori", "type": "voted" } ],
+  "notes": "Journey: Kristin (Toka), Ori (Savu), Sharonda (Dina) went; two plates of food for three; Kristin volunteered to stay on Exile and received a Tethered Idol (holder must play it on Ori or Sharonda; becomes a full idol if both are out). Counted as findIdol +3 (comes to possess an idol). Toka and Dina won immunity (Toka edged Dina). Savu Tribal: Ori played Shot in the Dark (Not Safe, no points), voted out 2-0 by Devin and Jelly. Jelly revealed her idol at camp but did not play it. Devin still holds his extra vote. Ori held no idol. No idols played. No swap; merge comes next episode.",
+  "sources": [
+    "https://en.wikipedia.org/wiki/Survivor_51",
+    "https://www.tvline.com/2300559/survivor-51-recap-episode-6-ori-voted-out/",
+    "https://www.paramountplus.com/sneak-peak/survivor-season-51-episode-6-recap/"
+  ] }
