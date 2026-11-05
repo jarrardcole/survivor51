@@ -1,0 +1,71 @@
+{
+ "ep": 7,
+ "title": "The Girl at the Prom",
+ "scores": {
+  "thien-an": {
+   "makesMerge": true,
+   "survives": true
+  },
+  "lewis": {
+   "makesMerge": true,
+   "survives": true
+  },
+  "devin": {
+   "makesMerge": true,
+   "survives": true
+  },
+  "jelly": {
+   "makesMerge": true,
+   "survives": true
+  },
+  "kristin": {
+   "makesMerge": true,
+   "survives": true
+  },
+  "sharonda": {
+   "makesMerge": true,
+   "survives": true
+  },
+  "cristian": {
+   "makesMerge": true,
+   "survives": true
+  },
+  "kilby": {
+   "makesMerge": true,
+   "survives": true
+  },
+  "brady": {
+   "makesMerge": true
+  },
+  "mike": {
+   "makesMerge": true,
+   "survives": true,
+   "immunityWin": true
+  },
+  "eric": {
+   "makesMerge": true,
+   "survives": true
+  },
+  "maggie": {
+   "makesMerge": true,
+   "survives": true
+  },
+  "carter": {
+   "makesMerge": true,
+   "survives": true
+  }
+ },
+ "eliminated": [
+  {
+   "id": "brady",
+   "type": "voted"
+  }
+ ],
+ "notes": "Merge into Tovuto (13). Mike won individual immunity. Brady voted out (first juror), large majority (Carter, Lewis, Thien An voted elsewhere). No idols/advantages played. Not awarded pending ruling: Sharonda possibly receiving Kristin's tethered idol (Reality Blurred says given; Yahoo says only told about it).",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Survivor_51",
+  "https://www.realityblurred.com/realitytv/2026/11/survivor-51-episode-7-recap-girl-at-the-prom/",
+  "https://www.yahoo.com/entertainment/tv/reviews/articles/survivor-51-episode-7-recap-023000405.html",
+  "https://parade.com/tv/who-was-voted-off-survivor-tonight-week-7-recap-merge-spoilers-2026"
+ ]
+}

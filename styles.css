@@ -18,6 +18,7 @@
   --toka: #F5D422;
   --toka-buff: #FEE137;
   --dina: #F0525A;
+  --tovuto: #3FC1A5;
   --good: #5ED9A0;
   --machine: #9FB4C7;
   --bad: #FF5A5F;
@@ -223,10 +224,12 @@ label.field > span { display: block; font-size: 12.5px; font-weight: 700; color:
 .tribe-Savu { --ring: var(--savu); }
 .tribe-Toka { --ring: var(--toka); }
 .tribe-Dina { --ring: var(--dina); }
+.tribe-Tovuto { --ring: var(--tovuto); }
 .tribe-tag { font-size: 10.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
 .tribe-tag.Savu { color: var(--savu); }
 .tribe-tag.Toka { color: var(--toka); }
 .tribe-tag.Dina { color: var(--dina); }
+.tribe-tag.Tovuto { color: var(--tovuto); }
 
 /* ---------- Home ---------- */
 .hero {
