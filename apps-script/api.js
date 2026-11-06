@@ -198,8 +198,44 @@ function lockMachineVote(all) {
 }
 
 // When the main draft completes, the winner bets lock and become public.
+// ---------- "You're up" emails ----------
+// Opt-in per draft (draft.emailTurns, switched on by an admin; off by default). The next picker
+// gets an email with their personal pick link. Each slot is emailed once; Will can resend.
+var SITE_URL = 'https://jarrardcole.github.io/survivor51/';
+
+function notifyIfNewTurn(all, kind, force) {
+  if (NS) return;                                        // never email from the practice sandbox
+  var league = all[LEAGUE_KEY];
+  var d = kind === 'merge' ? league.merge : league.draft;
+  if (d.status !== 'live') return;
+  if (!d.emailTurns) return;                             // only drafts where emails were switched on
+  var slot = Engine.currentSlot(d);
+  if (!slot) return;
+  if (!force && d.notifiedN === slot.n) return;
+  var pr = all[PRIVATE_KEY].byId[slot.playerId];
+  var p = Engine.playerById(league, slot.playerId);
+  if (!pr || !pr.email || !p) return;
+  var link = SITE_URL + '?me=' + encodeURIComponent(pr.token || '') + '#draft';
+  var what = kind === 'merge' ? 'merge draft' : 'draft';
+  var made = d.picks.filter(function (x) { return x.castawayId; }).map(function (x) {
+    var who = Engine.playerById(league, x.playerId); var c = null;
+    for (var i = 0; i < CAST.length; i++) if (CAST[i].id === x.castawayId) c = CAST[i];
+    return (who ? who.name : '?') + ': ' + (c ? c.shortName : x.castawayId);
+  });
+  var html = '<div style="font-family:-apple-system,system-ui,sans-serif;max-width:520px;margin:0 auto;padding:24px;background:#1B1511;color:#F6EBDD;border-radius:14px">' +
+    '<div style="font-size:12px;letter-spacing:.18em;font-weight:800;color:#FFB23F">SURVIVOR: 🌈 BROOKLYN</div>' +
+    '<h2 style="margin:8px 0 12px;font-size:26px">🔥 You’re up in the ' + what + ', ' + p.name.split(/[\s-]/)[0] + '!</h2>' +
+    '<p style="margin:0 0 18px;color:#D9CBB9">It’s pick ' + (slot.n + 1) + ' of ' + Engine.totalSlots(d) + '. No time limit, but the people after you are waiting.</p>' +
+    '<p style="text-align:center;margin:0 0 20px"><a href="' + link + '" style="display:inline-block;padding:14px 26px;background:linear-gradient(135deg,#FF7A2F,#FFB23F);color:#1A0E05;font-weight:800;text-decoration:none;border-radius:12px">Make my pick</a></p>' +
+    (made.length ? '<p style="margin:0 0 6px;font-size:13px;color:#B3A392">Picks so far:</p><p style="margin:0 0 16px;font-size:13px;color:#D9CBB9">' + made.join('<br>') + '</p>' : '') +
+    '<p style="font-size:12px;color:#7A6C5F;margin:0">That button signs you in automatically. Keep this email to yourself.</p></div>';
+  Platform.queueMail(pr.email, '🔥 You’re up in the ' + what + ' (Survivor: Brooklyn)', html);
+  d.notifiedN = slot.n;
+}
+
 function onDraftProgress(all, kind) {
   var league = all[LEAGUE_KEY];
+  notifyIfNewTurn(all, kind);
   if (kind === 'main') Engine.machineCatchUp(league, CAST, MACHINE.plan, Date.now());
   if (kind === 'main' && league.draft.status === 'complete' && !league.winnerBets) {
     var bets = {};
@@ -412,7 +448,7 @@ function actAdmin(b) {
       break;
 
     case 'pause':  Engine.pause(draft, now); break;
-    case 'resume': Engine.resume(draft, now); break;
+    case 'resume': Engine.resume(draft, now); notifyIfNewTurn(all, kind); break;
     case 'undo':   out.undone = Engine.undo(draft, now);   // winner bets stay locked once revealed
       if (kind === 'main') Engine.machineCatchUp(league, CAST, MACHINE.plan, now);
       break;
@@ -462,6 +498,19 @@ function actAdmin(b) {
     case 'start_merge':
       if (!(Number(b.startEp) >= league.settings.scoringStartEp)) Engine.fail('bad_start_ep');
       Engine.startMerge(league, CAST, { now: now, order: b.order, startEp: Number(b.startEp), clockSec: Number(b.clockSec) || 0 });
+      notifyIfNewTurn(all, 'merge');
+      break;
+
+    case 'email_turns': {      // switch "you're up" emails on/off for this draft
+      draft.emailTurns = !!b.on;
+      if (draft.emailTurns) notifyIfNewTurn(all, kind, true);
+      out.emailTurns = draft.emailTurns;
+      break;
+    }
+
+    case 'notify_current':     // Will's "resend email" button
+      notifyIfNewTurn(all, kind, true);
+      out.notified = true;
       break;
 
     case 'save_episode': {

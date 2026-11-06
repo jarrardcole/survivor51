@@ -58,6 +58,16 @@ var Platform = (function () {
     var json = JSON.stringify(league);
     if (json.length < 49000) _pendingBackups.push([new Date(), reason, json]);
   }
+  // Emails are sent after the lock is released too, so a slow mail send never blocks a pick.
+  var _pendingMail = [];
+  function queueMail(to, subject, html) { _pendingMail.push({ to: to, subject: subject, htmlBody: html, name: 'Survivor: Brooklyn' }); }
+  function flushMail() {
+    var list = _pendingMail; _pendingMail = [];
+    list.forEach(function (m) {
+      try { MailApp.sendEmail(m); } catch (e) { console.warn('mail failed: ' + (e && e.message)); }
+    });
+  }
+
   function flushBackups() {
     if (!_pendingBackups.length) return;
     var rows = _pendingBackups; _pendingBackups = [];
@@ -123,6 +133,7 @@ var Platform = (function () {
       var held = Date.now() - t1;
       if (held > 2000 || t1 - t0 > 2000) console.warn('lock slow: ' + label + ' waited ' + (t1 - t0) + 'ms, held ' + held + 'ms');
       flushBackups();
+      flushMail();
     }
   }
 
@@ -141,7 +152,7 @@ var Platform = (function () {
   return {
     storeLoadAll: storeLoadAll, storeSet: storeSet, backup: backup,
     cachePut: cachePut, cacheGet: cacheGet, cacheClear: cacheClear,
-    withLock: withLock, tryWithLock: tryWithLock, adminKey: adminKey, json: json, raw: raw
+    withLock: withLock, tryWithLock: tryWithLock, queueMail: queueMail, adminKey: adminKey, json: json, raw: raw
   };
 })();
 
@@ -160,4 +171,9 @@ function setup() {
   });
   console.log('Admin key: ' + key);
   return key;
+}
+
+// Run once from the editor after adding email: it asks Google for permission to send mail.
+function authorizeMail() {
+  Logger.log('Emails left today: ' + MailApp.getRemainingDailyQuota());
 }

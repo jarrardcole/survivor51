@@ -1835,6 +1835,8 @@
         '<button class="btn primary" data-act="a_merge">Start merge draft</button>';
     } else {
       var ms = Engine.currentSlot(m);
+      h += '<label class="row small"><input type="checkbox" data-act="a_emails" ' + (m.emailTurns ? 'checked' : '') + ' style="width:20px;height:20px;accent-color:var(--ember)"> Email each person when it’s their turn</label>' +
+        (m.emailTurns ? '<button class="btn sm" data-act="a_resend">📧 Resend email to ' + esc(playerName(L, ms.playerId).split(' ')[0]) + '</button>' : '');
       h += '<div>On the clock: <b>' + esc(playerName(L, ms.playerId)) + '</b></div><div class="row">' + (m.status === 'live' ? '<button class="btn" data-act="a_pause" data-kind="merge">Pause</button>' : '<button class="btn" data-act="a_resume" data-kind="merge">Resume</button>') + '<button class="btn" data-act="a_undo" data-kind="merge">Undo</button></div>';
     }
     h += '</div></div>';
@@ -2236,6 +2238,8 @@
         admin('start_merge', { order: order, startEp: Number($('#aMergeEp').value), clockSec: Number($('#aMergeClock').value) }).then(adminDone('Merge draft started')).catch(adminFail); return;
       }
       case 'a_color': return;
+      case 'a_emails': admin('email_turns', { kind: 'merge', on: t.checked }).then(adminDone(t.checked ? 'Emails on. Whoever is up was just emailed.' : 'Emails off')).catch(adminFail); return;
+      case 'a_resend': admin('notify_current', { kind: 'merge' }).then(adminDone('Email sent')).catch(adminFail); return;
       case 'a_machine':
         admin('machine', { enabled: t.dataset.v === 'on' ? true : t.dataset.v === 'off' ? false : null }).then(adminDone('Machine setting saved')).catch(adminFail);
         return;

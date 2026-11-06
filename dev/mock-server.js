@@ -32,6 +32,7 @@ const Platform = {
   cacheClear: (ns) => { delete cache[ns || '']; },
   withLock: (label, fn) => fn(),     // node is single-threaded: requests never interleave
   tryWithLock: (ms, label, fn) => fn(),
+  queueMail: (to, subject) => { (global.__mail = global.__mail || []).push({ to, subject }); console.log('[mail]', to, subject); },
   adminKey: () => 'dev',
   json: (obj) => ({ body: JSON.stringify(obj) }),
   raw: (str) => ({ body: str })

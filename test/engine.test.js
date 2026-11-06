@@ -130,7 +130,7 @@ test('win probabilities sum to 1', () => {
 
 // ---------- API through the same vm harness the mock server uses ----------
 function api() {
-  let store = {}; let cache = {}; let now = 1_000_000;
+  let store = {}; let cache = {}; const mails = []; let now = 1_000_000;
   const ctx = {
     console, Math, JSON,
     Date: class extends Date { static now() { return now; } },
@@ -138,7 +138,7 @@ function api() {
       storeLoadAll: () => JSON.parse(JSON.stringify(store)),
       storeSet: (k, v) => { store[k] = JSON.parse(JSON.stringify(v)); },
       backup: () => {}, cachePut: (b, m, ns) => { cache[ns || ''] = { body: b, meta: m }; }, cacheGet: ns => cache[ns || ''] || null,
-      cacheClear: ns => { delete cache[ns || '']; }, withLock: (l, fn) => fn(), tryWithLock: (m, l, fn) => fn(), adminKey: () => 'k',
+      cacheClear: ns => { delete cache[ns || '']; }, withLock: (l, fn) => fn(), tryWithLock: (m, l, fn) => fn(), queueMail: (to, subject) => { mails.push({ to, subject }); }, adminKey: () => 'k',
       json: o => o, raw: s => JSON.parse(s)
     }
   };
@@ -149,7 +149,8 @@ function api() {
     get: () => ctx.doGet({ parameter: {} }),
     getNs: ns => ctx.doGet({ parameter: { ns } }),
     advance: ms => { now += ms; },
-    store: () => store
+    store: () => store,
+    mails: () => mails
   };
 }
 
@@ -315,4 +316,29 @@ test('default league scores Episode 2 (we draft before it airs) but not Episode 
   E.applyPick(l, CAST, 'main', 'p0', 'rob', { now: 1 });
   const episodes = { 1: { scores: { rob: { findIdol: true } } }, 2: { scores: { rob: { survives: true } } } };
   assert.strictEqual(E.playerTotal(l, episodes, 'p0'), 3);
+});
+
+test('API: "you\'re up" emails only when switched on for that draft, once per turn, never in practice', () => {
+  const a = api();
+  const x = a.post({ action: 'join', name: 'X', email: 'x@x.com' }).me;
+  const y = a.post({ action: 'join', name: 'Y', email: 'y@x.com' }).me;
+  a.post({ action: 'admin', key: 'k', op: 'start_draft', rounds: 1, clockSec: 90, order: [x.id, y.id] });
+  assert.strictEqual(a.mails().length, 0, 'no email on a 90-second draft');
+  a.post({ action: 'pick', token: x.token, castawayId: 'mike', n: 0 });
+  a.post({ action: 'pick', token: y.token, castawayId: 'kilby', n: 1 });
+  a.post({ action: 'admin', key: 'k', op: 'start_merge', order: [y.id, x.id], startEp: 8, clockSec: 0 });
+  assert.strictEqual(a.mails().length, 0, 'off by default');
+  a.post({ action: 'admin', key: 'k', op: 'email_turns', kind: 'merge', on: true });
+  assert.deepStrictEqual(a.mails().map(m => m.to), ['y@x.com'], 'switching on emails whoever is up');
+  a.get(); a.get();
+  assert.strictEqual(a.mails().length, 1, 'polling does not resend');
+  a.post({ action: 'pick', token: y.token, castawayId: 'jelly', n: 0, kind: 'merge' });
+  assert.deepStrictEqual(a.mails().map(m => m.to), ['y@x.com', 'x@x.com'], 'next picker emailed after a pick');
+  a.post({ action: 'admin', key: 'k', op: 'notify_current', kind: 'merge' });
+  assert.strictEqual(a.mails().length, 3, 'resend works');
+  // practice sandbox never emails
+  const px = a.post({ ns: 'practice', action: 'join', name: 'P', email: 'p@x.com' }).me;
+  a.post({ ns: 'practice', action: 'practice', op: 'start', bots: 2, clockSec: 45 });
+  assert.ok(a.mails().every(m => m.to !== 'p@x.com'));
+  void px;
 });
