@@ -363,7 +363,7 @@
       var slot = Engine.currentSlot(d);
       if (slot && isMe(slot.playerId) && d.status === 'live') {
         cls = 'yours';
-        html = '🔥 It’s your pick! Time left: <span data-clock="' + lk + '"></span>' + (S.route !== 'draft' ? ' <a class="btn sm" href="#draft">Pick now</a>' : '');
+        html = '🔥 It’s your pick!' + (d.clockSec ? ' Time left: <span data-clock="' + lk + '"></span>' : ' No rush, take your time.') + (S.route !== 'draft' ? ' <a class="btn sm" href="#draft">Pick now</a>' : '');
       } else if (S.route !== 'draft' && slot) {
         html = (lk === 'merge' ? 'Merge draft' : 'The draft') + ' is ' + (d.status === 'paused' ? 'paused' : 'live') + ' · ' + esc(playerName(S.data.league, slot.playerId)) + ' is up <a class="btn sm" href="#draft">Watch</a>';
       }
@@ -398,7 +398,8 @@
       if (c) c.style.strokeDashoffset = String(213.6 * (1 - frac));
       el.classList.toggle('low', d.status === 'live' && ms < 15000);
       var t = el.querySelector('.t');
-      if (t) t.textContent = d.status === 'paused' ? '❚❚' : clockText(ms);
+      if (t) t.textContent = d.status === 'paused' ? '❚❚' : !d.clockSec ? '∞' : clockText(ms);
+      if (!d.clockSec && c) c.style.strokeDashoffset = '0';
     });
     $$('[data-countdown]').forEach(function (el) {
       var ms = Number(el.dataset.countdown) - now();
@@ -1153,7 +1154,11 @@
   }
 
   function filterSeg() {
-    var opts = [['all', 'All'], ['Savu', 'Savu'], ['Toka', 'Toka'], ['avail', 'Available']];
+    // Tribe filters follow the tribes actually in play (none once everyone has merged).
+    var tribes = [];
+    if (S.data) CAST.forEach(function (c) { var t = Engine.castawayStatus(S.data.league, CAST, c.id); if (t.status === 'active' && tribes.indexOf(t.tribe) === -1) tribes.push(t.tribe); });
+    if (tribes.indexOf(S.boardFilter) === -1 && S.boardFilter !== 'avail') S.boardFilter = 'all';
+    var opts = [['all', 'All']].concat(tribes.length > 1 ? tribes.map(function (t) { return [t, t]; }) : []).concat([['avail', 'Available']]);
     return '<div class="seg">' + opts.map(function (o) { return '<button class="' + (S.boardFilter === o[0] ? 'on' : '') + '" data-act="filter" data-f="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</div>';
   }
 
@@ -1173,7 +1178,7 @@
     list.forEach(function (c) {
       var s = st(v, c.id);
       if (s.status !== 'active' && opts.prep) return;
-      if (S.boardFilter === 'Savu' || S.boardFilter === 'Toka') { if (s.tribe !== S.boardFilter) return; }
+      if (S.boardFilter !== 'all' && S.boardFilter !== 'avail') { if (s.tribe !== S.boardFilter) return; }
       var blocker = S.me && amIn() ? Engine.pickBlocker(L, CAST, kind, S.me.id, c.id) : null;
       var taken = Engine.timesPicked(d, c.id);
       var gone = s.status !== 'active' || taken >= cap;
@@ -1271,6 +1276,7 @@
   }
 
   function autoPickHint(v, kind) {
+    if (!draftOf(kind).clockSec) return '<div class="small muted hide-sm" style="max-width:200px">No time limit. Pick whenever you’re ready.</div>';
     var L = v.league;
     var q = (S.me && S.me.queue) || [];
     var choice = Engine.chooseAutoPick(L, CAST, kind, S.me.id, q, []);
